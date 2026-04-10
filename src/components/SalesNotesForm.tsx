@@ -17,6 +17,7 @@ interface ClienteData {
   zipCode: string;
   ciudad: string;
   telefono: string;
+  correo: string;
 }
 
 // Sub-preguntas por producto
@@ -96,7 +97,7 @@ const initSeguimiento: SeguimientoData = {
   otraObjecion: "", interes: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
 
-const initCliente: ClienteData = { nombre: "", direccion: "", zipCode: "", ciudad: "", telefono: "" };
+const initCliente: ClienteData = { nombre: "", direccion: "", zipCode: "", ciudad: "", telefono: "", correo: "" };
 
 const PRODUCTOS = [
   { value: "placas", label: "PLACAS SOLARES" },
@@ -330,6 +331,7 @@ function buildNote(
   const clienteLines = [];
   if (cliente.nombre) clienteLines.push(`Cliente: ${cliente.nombre}`);
   if (cliente.telefono) clienteLines.push(`Teléfono: ${cliente.telefono}`);
+  if (cliente.correo) clienteLines.push(`Correo: ${cliente.correo}`);
   if (cliente.direccion) clienteLines.push(`Dirección: ${cliente.direccion}${cliente.ciudad ? `, ${cliente.ciudad}` : ""}${cliente.zipCode ? ` ${cliente.zipCode}` : ""}`);
 
   const d = type === "primera" ? p : s;
@@ -411,10 +413,15 @@ function buildNote(
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+/** Detecta si el ID ingresado corresponde a Lead o Deal */
+function detectModuleLabel(id: string): "LEAD" | "DEAL" | null {
+  if (!id.trim()) return null;
+  return /^L\d/i.test(id.trim()) ? "LEAD" : "DEAL";
+}
+
 export default function SalesNotesForm() {
   const { toast } = useToast();
-  const [dealNum, setDealNum] = useState("");
-  const [leadNum, setLeadNum] = useState("");
+  const [searchId, setSearchId] = useState("");
   const [cliente, setCliente] = useState<ClienteData>(initCliente);
   const [searchDone, setSearchDone] = useState(false);
   const [callType, setCallType] = useState<CallType>(null);
@@ -454,11 +461,13 @@ export default function SalesNotesForm() {
         : [...prev.objeciones, o],
     }));
 
+  // Demo: solo valida el campo y abre el formulario para ingreso manual
   const handleSearch = () => {
-    if (!dealNum && !leadNum) {
-      toast({ title: "Ingresa al menos un número", variant: "destructive" });
+    if (!searchId.trim()) {
+      toast({ title: "Ingresa el número de Lead o contrato", variant: "destructive" });
       return;
     }
+    setCliente(initCliente);
     setSearchDone(true);
     setCallType(null);
     setShowNote(false);
@@ -467,21 +476,30 @@ export default function SalesNotesForm() {
   };
 
   const handleReset = () => {
-    setDealNum(""); setLeadNum("");
+    setSearchId("");
     setCliente(initCliente);
-    setSearchDone(false); setCallType(null);
-    setPrimera(initPrimera); setSeguimiento(initSeguimiento);
+    setSearchDone(false);
+    setCallType(null);
+    setPrimera(initPrimera);
+    setSeguimiento(initSeguimiento);
     setShowNote(false);
   };
 
+  // Demo: muestra la nota generada pero no la envía a ningún CRM
   const handleSave = () => {
     toast({
-      title: "CRM no conectado aún",
-      description: "La nota fue generada. La integración con Zoho se activará próximamente.",
+      title: "Nota generada correctamente",
+      description: "La conexión con Zoho CRM se configurará próximamente.",
     });
   };
 
-  const note = buildNote(dealNum, leadNum, cliente, callType, primera, seguimiento);
+  const moduleLabel = detectModuleLabel(searchId);
+  const isLead = moduleLabel === "LEAD";
+  const note = buildNote(
+    isLead ? "" : searchId,
+    isLead ? searchId : "",
+    cliente, callType, primera, seguimiento
+  );
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
   return (
@@ -501,21 +519,54 @@ export default function SalesNotesForm() {
 
           {/* ── SECCIÓN 1: IDENTIFICACIÓN ── */}
           <Section title="Identificación del cliente">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Número de Deal</label>
-                <Input placeholder="Ej: 12345" value={dealNum} onChange={(e) => setDealNum(e.target.value)} className="bg-background" />
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Número de Lead o Contrato
+                </label>
+                {searchId.trim() && moduleLabel && (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    moduleLabel === "LEAD"
+                      ? "bg-accent/15 text-accent"
+                      : "bg-primary/15 text-primary"
+                  }`}>
+                    {moduleLabel === "LEAD" ? "📋 LEAD" : "📁 DEAL / CONTRATO"}
+                  </span>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Número de Lead</label>
-                <Input placeholder="Ej: L-67890" value={leadNum} onChange={(e) => setLeadNum(e.target.value)} className="bg-background" />
-              </div>
+              <Input
+                placeholder="L786631 · R12345JohnSmith · W12345... · PPS12345... · 12345..."
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !searching && handleSearch()}
+                className="bg-background font-mono text-sm"
+                disabled={searching}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Lead: <span className="font-mono">L786631</span> &nbsp;|&nbsp;
+                Roofing: <span className="font-mono">R...</span> &nbsp;|&nbsp;
+                Water: <span className="font-mono">W...</span> &nbsp;|&nbsp;
+                Anker: <span className="font-mono">PPS...</span> &nbsp;|&nbsp;
+                Placas: <span className="font-mono">números</span>
+              </p>
             </div>
 
             <div className="flex gap-3">
-              <Button type="button" variant="windmar" onClick={handleSearch} className="flex-1">
-                <Search className="h-4 w-4 mr-2" />
-                Cargar Cliente
+              <Button type="button" variant="windmar" onClick={handleSearch} disabled={searching} className="flex-1">
+                {searching ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Buscando en CRM...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    Cargar Cliente
+                  </>
+                )}
               </Button>
               {searchDone && (
                 <Button type="button" variant="outline" onClick={handleReset} size="icon" title="Nueva consulta">
@@ -524,12 +575,11 @@ export default function SalesNotesForm() {
               )}
             </div>
 
-            {/* Datos del cliente — placeholder hasta conectar CRM */}
+            {/* Datos del cliente */}
             {searchDone && (
               <div className="bg-muted/40 rounded-xl p-4 border border-border/40 space-y-3">
                 <p className="text-[10px] font-bold text-primary/60 uppercase tracking-wider">
                   Datos del cliente
-                  <span className="ml-2 normal-case font-normal text-muted-foreground">(CRM no conectado — ingresa manualmente)</span>
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -551,6 +601,10 @@ export default function SalesNotesForm() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Zip Code</label>
                     <Input placeholder="00000" value={cliente.zipCode} onChange={(e) => setC("zipCode", e.target.value)} className="bg-background text-sm h-8" />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Correo Electrónico</label>
+                    <Input placeholder="correo@ejemplo.com" value={cliente.correo} onChange={(e) => setC("correo", e.target.value)} className="bg-background text-sm h-8" type="email" />
                   </div>
                 </div>
               </div>
@@ -799,8 +853,7 @@ export default function SalesNotesForm() {
                         </div>
                       </Question>
 
-                      {/* Sub-preguntas */}
-                      <SubsProducto productos={seguimiento.productos} subs={seguimiento.subs} onChange={setSSub} />
+                      {/* Sub-preguntas eliminadas en seguimiento — solo se registra el producto discutido */}
 
                       {/* 04 Revisó */}
                       <Question num="04" label="¿El cliente revisó la información enviada?">
