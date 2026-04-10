@@ -418,6 +418,7 @@ export default function SalesNotesForm() {
   const [dealNum, setDealNum] = useState("");
   const [leadNum, setLeadNum] = useState("");
   const [newLeadNum, setNewLeadNum] = useState("");
+  const [searchError, setSearchError] = useState("");
   const [cliente, setCliente] = useState<ClienteData>(initCliente);
   const [searchDone, setSearchDone] = useState(false);
   const [callType, setCallType] = useState<CallType>(null);
@@ -456,12 +457,14 @@ export default function SalesNotesForm() {
         : [...prev.objeciones, o],
     }));
 
-  // Demo: valida que haya al menos un número y abre el formulario manual
-  const handleSearch = () => {
-    if (!dealNum.trim() && !leadNum.trim()) {
-      toast({ title: "Ingresa un número de Deal o Lead", variant: "destructive" });
+  // Busca por deal o lead y abre el formulario
+  const handleSearch = (field: "deal" | "lead") => {
+    const val = field === "deal" ? dealNum.trim() : leadNum.trim();
+    if (!val) {
+      setSearchError(field === "deal" ? "Ingresa un número de Deal" : "Ingresa un número de Lead");
       return;
     }
+    setSearchError("");
     setCliente(initCliente);
     setNewLeadNum("");
     setSearchDone(true);
@@ -471,29 +474,30 @@ export default function SalesNotesForm() {
     setSeguimiento(initSeguimiento);
   };
 
-  // Demo: genera un número de Lead nuevo (cuando Zoho esté conectado creará el registro real)
+  // Genera un Lead nuevo desde el Deal (demo — cuando Zoho esté conectado creará el registro real)
   const handleCreateLead = () => {
+    if (!dealNum.trim()) {
+      setSearchError("Escribe el número de Deal antes de crear un Lead");
+      return;
+    }
+    setSearchError("");
     const digits = String(Math.floor(100000 + Math.random() * 900000));
     const generated = `L${digits}`;
     setLeadNum(generated);
     setNewLeadNum(generated);
-    setDealNum("");
     setCliente(initCliente);
     setSearchDone(true);
     setCallType(null);
     setShowNote(false);
     setPrimera(initPrimera);
     setSeguimiento(initSeguimiento);
-    toast({
-      title: `Lead creado: ${generated}`,
-      description: "Número generado en modo demo. Al conectar Zoho CRM se creará el registro real.",
-    });
   };
 
   const handleReset = () => {
     setDealNum("");
     setLeadNum("");
     setNewLeadNum("");
+    setSearchError("");
     setCliente(initCliente);
     setSearchDone(false);
     setCallType(null);
@@ -531,64 +535,105 @@ export default function SalesNotesForm() {
           {/* ── SECCIÓN 1: IDENTIFICACIÓN ── */}
           <Section title="Identificación del cliente">
 
-            {/* DEAL + botón Crear Lead */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Número de Deal</label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ej: R12345, W12345, 12345..."
-                  value={dealNum}
-                  onChange={(e) => setDealNum(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="bg-background"
-                />
-                <Button
+            {/* Fila única: Deal + Lead + botón Nuevo Lead + Reset */}
+            <div className="flex items-end gap-2">
+
+              {/* DEAL */}
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase">Número de Deal</label>
+                <div className="relative">
+                  <Input
+                    placeholder="Ingresa Numero de Deal"
+                    value={dealNum}
+                    onChange={(e) => { setDealNum(e.target.value); setSearchError(""); }}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch("deal")}
+                    className="bg-background pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSearch("deal")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                    title="Buscar Deal"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* LEAD */}
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase">Número de Lead</label>
+                <div className="relative">
+                  <Input
+                    placeholder="Ingresa Numero de Lead"
+                    value={leadNum}
+                    onChange={(e) => { setLeadNum(e.target.value); setSearchError(""); }}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch("lead")}
+                    className="bg-background pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSearch("lead")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                    title="Buscar Lead"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón Nuevo Lead — solo icono con tooltip */}
+              <div className="relative group shrink-0">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={handleCreateLead}
-                  className="shrink-0 gap-1.5 border-accent text-accent hover:bg-accent hover:text-white px-3"
-                  title="Crear nuevo Lead desde este Deal"
+                  className={`h-10 w-10 rounded-lg border-2 flex items-center justify-center transition-all
+                    ${!dealNum.trim()
+                      ? "border-red-400 text-red-400 animate-pulse hover:animate-none hover:bg-red-50 dark:hover:bg-red-950"
+                      : "border-accent text-accent hover:bg-accent hover:text-white"
+                    }`}
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span className="text-xs font-bold hidden sm:inline">Nuevo Lead</span>
-                </Button>
+                </button>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none z-20 hidden group-hover:block">
+                  <div className="bg-foreground text-background text-[10px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap shadow-lg">
+                    Crear nuevo Lead
+                  </div>
+                  <div className="w-2 h-2 bg-foreground rotate-45 mx-auto -mt-1" />
+                </div>
               </div>
+
+              {/* Reset */}
+              {searchDone && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="shrink-0 h-10 w-10 rounded-lg border-2 border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all"
+                  title="Nueva consulta"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
-            {/* LEAD */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Número de Lead</label>
-              <Input
-                placeholder="Ej: L786631  (se llena automático al crear)"
-                value={leadNum}
-                onChange={(e) => setLeadNum(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="bg-background"
-              />
-            </div>
+            {/* Error inline */}
+            {searchError && (
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+                <span className="text-destructive text-xs font-semibold">⚠ {searchError}</span>
+              </div>
+            )}
 
             {/* Badge del lead recién creado */}
             {newLeadNum && (
               <div className="flex items-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-2.5">
                 <UserPlus className="h-4 w-4 text-accent shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-accent uppercase tracking-wide">Nuevo Lead creado</p>
+                  <p className="text-[10px] font-bold text-accent uppercase tracking-wide">Nuevo Lead creado</p>
                   <p className="text-sm font-mono font-bold text-foreground">{newLeadNum}</p>
                 </div>
               </div>
             )}
-
-            <div className="flex gap-3">
-              <Button type="button" variant="windmar" onClick={handleSearch} className="flex-1">
-                <Search className="h-4 w-4 mr-2" />
-                Cargar Cliente
-              </Button>
-              {searchDone && (
-                <Button type="button" variant="outline" onClick={handleReset} size="icon" title="Nueva consulta">
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
 
             {/* Datos del cliente */}
             {searchDone && (
