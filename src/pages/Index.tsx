@@ -7,7 +7,7 @@ const Index = () => {
 
   useEffect(() => {
     // Desmonta el splash después de que la animación termine (1.5s delay + 0.55s fade)
-    const timer = setTimeout(() => setShowSplash(false), 2100);
+    const timer = setTimeout(() => setShowSplash(false), 2400);
     return () => clearTimeout(timer);
   }, []);
 

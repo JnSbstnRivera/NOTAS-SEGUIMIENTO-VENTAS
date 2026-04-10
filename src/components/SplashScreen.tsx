@@ -10,7 +10,9 @@ export default function SplashScreen() {
         <p className="splash-title-orange">Notas de Seguimiento</p>
         <p className="splash-title-white">Equipo de Ventas</p>
       </div>
-      <div className="splash-line" />
+      <div className="splash-loading-track">
+        <div className="splash-loading-fill" />
+      </div>
     </div>
   );
 }
