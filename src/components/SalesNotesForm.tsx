@@ -41,6 +41,7 @@ interface ProductoSubs {
 
 interface PrimeraData {
   contesto: string;
+  intentos: string;
   resultadoLlamada: string; // "venta" | "info_general"
   // Venta
   productoVendido: string;
@@ -58,6 +59,7 @@ interface PrimeraData {
 
 interface SeguimientoData {
   contesto: string;
+  intentos: string;
   resultadoLlamada: string; // "venta" | "info_general"
   // Venta
   productoVendido: string;
@@ -83,13 +85,13 @@ const initSubs: ProductoSubs = {
 };
 
 const initPrimera: PrimeraData = {
-  contesto: "", resultadoLlamada: "", productoVendido: "", financiera: "",
+  contesto: "", intentos: "", resultadoLlamada: "", productoVendido: "", financiera: "",
   productos: [], subs: { ...initSubs }, esPropietario: "", interes: "",
   motivoNoInteres: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
 
 const initSeguimiento: SeguimientoData = {
-  contesto: "", resultadoLlamada: "", productoVendido: "", financiera: "",
+  contesto: "", intentos: "", resultadoLlamada: "", productoVendido: "", financiera: "",
   productos: [], subs: { ...initSubs }, reviso: "", objeciones: [],
   otraObjecion: "", interes: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
@@ -308,7 +310,7 @@ function buildNote(
   const fecha = now.toLocaleDateString("es-PR", { year: "numeric", month: "2-digit", day: "2-digit" });
   const hora = now.toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" });
 
-  const ansMap: Record<string, string> = { si: "Sí contestó", no_contesta: "No contesta", buzon: "Buzón de voz" };
+  const ansMap: Record<string, string> = { si: "Sí contestó", no_contesta: "No contesta (fue a buzón)" };
   const interesMap: Record<string, string> = {
     muy_interesado: "Muy interesado", interesado: "Interesado",
     poco_interesado: "Poco interesado", no_interesado: "No interesado",
@@ -340,7 +342,7 @@ function buildNote(
     `Deal: ${deal || "—"} | Lead: ${lead || "—"}`,
     ...clienteLines,
     "---",
-    `Contestó: ${ansMap[d.contesto] || "—"}`,
+    `Contestó: ${ansMap[d.contesto] || "—"}${d.contesto === "no_contesta" && d.intentos ? ` — Intentos: ${d.intentos}` : ""}`,
   ];
 
   if (d.contesto === "si") {
@@ -587,15 +589,24 @@ export default function SalesNotesForm() {
 
               {/* 01 ¿Contestó? */}
               <Question num="01" label="¿El cliente contestó la llamada?">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {[
                     { v: "si", l: "SÍ CONTESTÓ" },
                     { v: "no_contesta", l: "NO CONTESTA" },
-                    { v: "buzon", l: "BUZÓN DE VOZ" },
                   ].map((o) => (
                     <OptBtn key={o.v} active={primera.contesto === o.v} onClick={() => setP("contesto", o.v)}>{o.l}</OptBtn>
                   ))}
                 </div>
+                {primera.contesto === "no_contesta" && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <label className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Intentos de llamada:</label>
+                    <div className="flex gap-2">
+                      {["1", "2", "3", "4", "5+"].map((n) => (
+                        <OptBtn key={n} active={primera.intentos === n} onClick={() => setP("intentos", n)}>{n}</OptBtn>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Question>
 
               {primera.contesto === "si" && (
@@ -722,15 +733,24 @@ export default function SalesNotesForm() {
 
               {/* 01 ¿Contestó? */}
               <Question num="01" label="¿El cliente contestó la llamada?">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {[
                     { v: "si", l: "SÍ CONTESTÓ" },
                     { v: "no_contesta", l: "NO CONTESTA" },
-                    { v: "buzon", l: "BUZÓN DE VOZ" },
                   ].map((o) => (
                     <OptBtn key={o.v} active={seguimiento.contesto === o.v} onClick={() => setS("contesto", o.v)}>{o.l}</OptBtn>
                   ))}
                 </div>
+                {seguimiento.contesto === "no_contesta" && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <label className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Intentos de llamada:</label>
+                    <div className="flex gap-2">
+                      {["1", "2", "3", "4", "5+"].map((n) => (
+                        <OptBtn key={n} active={seguimiento.intentos === n} onClick={() => setS("intentos", n)}>{n}</OptBtn>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Question>
 
               {seguimiento.contesto === "si" && (
