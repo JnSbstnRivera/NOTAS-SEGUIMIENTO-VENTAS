@@ -10,13 +10,44 @@ import { useToast } from "@/hooks/use-toast";
 
 type CallType = "primera" | "seguimiento" | null;
 
+// Datos del cliente (CRM placeholder / futuro Zoho)
+interface ClienteData {
+  nombre: string;
+  direccion: string;
+  zipCode: string;
+  ciudad: string;
+  telefono: string;
+}
+
+// Sub-preguntas por producto
+interface ProductoSubs {
+  // Placas
+  facturaLuma: string;
+  tieneSolar: string;
+  // Powerwall
+  solarInstalado: string;
+  frecuenciaApagones: string;
+  // Water
+  tipoAgua: string;
+  problemasAgua: string;
+  // Roofing
+  materialTecho: string;
+  tieneFiltraciones: string;
+  // Anker
+  solarAnker: string;
+  necesitaRespaldo: string;
+}
+
 interface PrimeraData {
   contesto: string;
-  producto: string;
+  resultadoLlamada: string; // "venta" | "info_general"
+  // Venta
+  productoVendido: string;
+  financiera: string;
+  // Info general
+  productos: string[];
+  subs: ProductoSubs;
   esPropietario: string;
-  tieneSolar: string;
-  conformeSistema: string;
-  facturaLuma: string;
   interes: string;
   motivoNoInteres: string;
   proximoPaso: string;
@@ -26,7 +57,13 @@ interface PrimeraData {
 
 interface SeguimientoData {
   contesto: string;
-  producto: string;
+  resultadoLlamada: string; // "venta" | "info_general"
+  // Venta
+  productoVendido: string;
+  financiera: string;
+  // Info general
+  productos: string[];
+  subs: ProductoSubs;
   reviso: string;
   objeciones: string[];
   otraObjecion: string;
@@ -36,17 +73,27 @@ interface SeguimientoData {
   notas: string;
 }
 
+const initSubs: ProductoSubs = {
+  facturaLuma: "", tieneSolar: "",
+  solarInstalado: "", frecuenciaApagones: "",
+  tipoAgua: "", problemasAgua: "",
+  materialTecho: "", tieneFiltraciones: "",
+  solarAnker: "", necesitaRespaldo: "",
+};
+
 const initPrimera: PrimeraData = {
-  contesto: "", producto: "", esPropietario: "", tieneSolar: "",
-  conformeSistema: "", facturaLuma: "", interes: "", motivoNoInteres: "",
-  proximoPaso: "", fechaProximoContacto: "", notas: "",
+  contesto: "", resultadoLlamada: "", productoVendido: "", financiera: "",
+  productos: [], subs: { ...initSubs }, esPropietario: "", interes: "",
+  motivoNoInteres: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
 
 const initSeguimiento: SeguimientoData = {
-  contesto: "", producto: "", reviso: "", objeciones: [],
-  otraObjecion: "", interes: "", proximoPaso: "",
-  fechaProximoContacto: "", notas: "",
+  contesto: "", resultadoLlamada: "", productoVendido: "", financiera: "",
+  productos: [], subs: { ...initSubs }, reviso: "", objeciones: [],
+  otraObjecion: "", interes: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
+
+const initCliente: ClienteData = { nombre: "", direccion: "", zipCode: "", ciudad: "", telefono: "" };
 
 const PRODUCTOS = [
   { value: "placas", label: "PLACAS SOLARES" },
@@ -56,26 +103,28 @@ const PRODUCTOS = [
   { value: "anker", label: "ANKER" },
 ];
 
-const OBJECIONES = [
-  "Precio muy alto",
-  "Consultar con familia",
-  "Dudas de instalación",
-  "Dudas de financiamiento",
-  "Ya tiene otro proveedor",
-  "Otro",
+const FINANCIERAS = [
+  { v: "wh_financial", l: "WH FINANCIAL" },
+  { v: "oriental", l: "ORIENTAL" },
+  { v: "enfin", l: "ENFIN" },
+  { v: "synchrony", l: "SYNCHRONY" },
+  { v: "kiwi", l: "KIWI" },
+  { v: "cash", l: "CASH / CONTADO" },
 ];
 
-// ─── Option Button (estilo TM original) ──────────────────────────────────────
+const OBJECIONES = [
+  "Precio muy alto", "Consultar con familia",
+  "Dudas de instalación", "Dudas de financiamiento",
+  "Ya tiene otro proveedor", "Otro",
+];
 
-function OptBtn({
-  active, onClick, children, danger = false,
-}: {
+// ─── Helper Components ────────────────────────────────────────────────────────
+
+function OptBtn({ active, onClick, children, danger = false }: {
   active: boolean; onClick: () => void; children: React.ReactNode; danger?: boolean;
 }) {
   const base = "rounded-xl border-2 py-3 px-4 text-xs font-bold uppercase tracking-wide transition-all";
-  const activeClass = danger
-    ? "border-destructive bg-destructive text-white"
-    : "border-primary bg-primary text-white";
+  const activeClass = danger ? "border-destructive bg-destructive text-white" : "border-primary bg-primary text-white";
   const inactiveClass = "border-border text-foreground/70 bg-card hover:border-primary/50 hover:text-primary";
   return (
     <button type="button" className={`${base} ${active ? activeClass : inactiveClass}`} onClick={onClick}>
@@ -83,8 +132,6 @@ function OptBtn({
     </button>
   );
 }
-
-// ─── Section Card ─────────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -97,33 +144,148 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// ─── Question Row ─────────────────────────────────────────────────────────────
-
-function Question({ num, label, children }: { num: string; label: string; children: React.ReactNode }) {
+function Question({ num, label, sub = false, children }: {
+  num: string; label: string; sub?: boolean; children: React.ReactNode;
+}) {
   return (
     <div className="space-y-2.5">
       <div className="flex items-start gap-3">
-        <span className="text-primary font-bold text-sm mt-0.5">{num}</span>
-        <span className="text-sm text-foreground/90 leading-relaxed">{label}</span>
+        <span className={`font-bold text-sm mt-0.5 ${sub ? "text-accent" : "text-primary"}`}>{num}</span>
+        <span className={`text-sm leading-relaxed ${sub ? "text-foreground/75" : "text-foreground/90"}`}>{label}</span>
       </div>
-      <div className="pl-8">{children}</div>
+      <div className={sub ? "pl-10" : "pl-8"}>{children}</div>
+    </div>
+  );
+}
+
+// ─── Sub-preguntas por producto ───────────────────────────────────────────────
+
+function SubsProducto({
+  productos, subs, onChange,
+}: {
+  productos: string[];
+  subs: ProductoSubs;
+  onChange: (k: keyof ProductoSubs, v: string) => void;
+}) {
+  if (productos.length === 0) return null;
+  return (
+    <div className="space-y-4 pl-2 border-l-2 border-accent/30 ml-1">
+      {/* PLACAS */}
+      {productos.includes("placas") && (
+        <>
+          <Question num="2.1" label="¿Cuánto paga mensualmente en LUMA?" sub>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[{ v: "menos_100", l: "MENOS $100" }, { v: "100_200", l: "$100 – $200" },
+                { v: "200_300", l: "$200 – $300" }, { v: "300_mas", l: "$300 O MÁS" }].map((o) => (
+                <OptBtn key={o.v} active={subs.facturaLuma === o.v} onClick={() => onChange("facturaLuma", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+          <Question num="2.2" label="¿Tiene sistema solar actualmente?" sub>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ v: "si", l: "SÍ TIENE" }, { v: "no", l: "NO TIENE" }].map((o) => (
+                <OptBtn key={o.v} active={subs.tieneSolar === o.v} onClick={() => onChange("tieneSolar", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+        </>
+      )}
+
+      {/* POWERWALL */}
+      {productos.includes("powerwall") && (
+        <>
+          <Question num="2.1" label="¿Ya tiene sistema solar instalado?" sub>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ v: "si", l: "SÍ TIENE SOLAR" }, { v: "no", l: "NO TIENE SOLAR" }].map((o) => (
+                <OptBtn key={o.v} active={subs.solarInstalado === o.v} onClick={() => onChange("solarInstalado", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+          <Question num="2.2" label="¿Con qué frecuencia sufre apagones?" sub>
+            <div className="grid grid-cols-3 gap-3">
+              {[{ v: "frecuentes", l: "FRECUENTES" }, { v: "ocasionales", l: "OCASIONALES" }, { v: "raramente", l: "RARAMENTE" }].map((o) => (
+                <OptBtn key={o.v} active={subs.frecuenciaApagones === o.v} onClick={() => onChange("frecuenciaApagones", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+        </>
+      )}
+
+      {/* WATER */}
+      {productos.includes("water") && (
+        <>
+          <Question num="2.1" label="¿Qué tipo de agua utiliza actualmente?" sub>
+            <div className="grid grid-cols-3 gap-3">
+              {[{ v: "prasa", l: "PRASA" }, { v: "pozo", l: "POZO" }, { v: "filtros", l: "FILTROS / BOTELLA" }].map((o) => (
+                <OptBtn key={o.v} active={subs.tipoAgua === o.v} onClick={() => onChange("tipoAgua", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+          <Question num="2.2" label="¿Tiene problemas con la calidad del agua?" sub>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ v: "si", l: "SÍ, HAY PROBLEMAS" }, { v: "no", l: "NO HAY PROBLEMAS" }].map((o) => (
+                <OptBtn key={o.v} active={subs.problemasAgua === o.v} onClick={() => onChange("problemasAgua", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+        </>
+      )}
+
+      {/* ROOFING */}
+      {productos.includes("roofing") && (
+        <>
+          <Question num="2.1" label="¿De qué material es el techo?" sub>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[{ v: "cemento", l: "CEMENTO" }, { v: "galvalume", l: "GALVALUME" },
+                { v: "zinc", l: "ZINC" }, { v: "otro", l: "OTRO" }].map((o) => (
+                <OptBtn key={o.v} active={subs.materialTecho === o.v} onClick={() => onChange("materialTecho", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+          <Question num="2.2" label="¿Tiene filtraciones o daños en el techo?" sub>
+            <div className="grid grid-cols-3 gap-3">
+              {[{ v: "si", l: "SÍ, FILTRACIONES" }, { v: "danado", l: "TECHO DAÑADO" }, { v: "no", l: "BUEN ESTADO" }].map((o) => (
+                <OptBtn key={o.v} active={subs.tieneFiltraciones === o.v} onClick={() => onChange("tieneFiltraciones", o.v)} danger={o.v !== "no"}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+        </>
+      )}
+
+      {/* ANKER */}
+      {productos.includes("anker") && (
+        <>
+          <Question num="2.1" label="¿Tiene sistema solar instalado actualmente?" sub>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ v: "si", l: "SÍ TIENE SOLAR" }, { v: "no", l: "NO TIENE SOLAR" }].map((o) => (
+                <OptBtn key={o.v} active={subs.solarAnker === o.v} onClick={() => onChange("solarAnker", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+          <Question num="2.2" label="¿Necesita respaldo de energía o backup?" sub>
+            <div className="grid grid-cols-3 gap-3">
+              {[{ v: "urgente", l: "SÍ, URGENTE" }, { v: "futuro", l: "SÍ, A FUTURO" }, { v: "explorando", l: "EXPLORANDO" }].map((o) => (
+                <OptBtn key={o.v} active={subs.necesitaRespaldo === o.v} onClick={() => onChange("necesitaRespaldo", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+        </>
+      )}
     </div>
   );
 }
 
 // ─── Note generator ───────────────────────────────────────────────────────────
 
-function buildNote(deal: string, lead: string, type: CallType, p: PrimeraData, s: SeguimientoData) {
+function buildNote(
+  deal: string, lead: string, cliente: ClienteData,
+  type: CallType, p: PrimeraData, s: SeguimientoData
+) {
   const now = new Date();
   const fecha = now.toLocaleDateString("es-PR", { year: "numeric", month: "2-digit", day: "2-digit" });
   const hora = now.toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" });
 
-  const prodLabel = PRODUCTOS.find((x) => x.value === (type === "primera" ? p.producto : s.producto))?.label || "—";
-
-  const ansMap: Record<string, string> = {
-    si: "Sí contestó", no_contesta: "No contesta",
-    buzon: "Buzón de voz", numero_incorrecto: "Número incorrecto",
-  };
+  const ansMap: Record<string, string> = { si: "Sí contestó", no_contesta: "No contesta", buzon: "Buzón de voz" };
   const interesMap: Record<string, string> = {
     muy_interesado: "Muy interesado", interesado: "Interesado",
     poco_interesado: "Poco interesado", no_interesado: "No interesado",
@@ -132,56 +294,93 @@ function buildNote(deal: string, lead: string, type: CallType, p: PrimeraData, s
     enviar_propuesta: "Enviar propuesta", agendar_cierre: "Agendar cierre",
     volver_llamar: "Volver a llamar", cerrar: "Cerrar oportunidad",
   };
+  const finMap: Record<string, string> = {
+    wh_financial: "WH Financial", oriental: "Oriental", enfin: "ENFIN",
+    synchrony: "Synchrony", kiwi: "Kiwi", cash: "Cash / Contado",
+  };
   const facMap: Record<string, string> = {
-    menos_100: "Menos de $100", "100_200": "$100–$200",
-    "200_300": "$200–$300", "300_mas": "$300 o más",
+    menos_100: "Menos de $100", "100_200": "$100–$200", "200_300": "$200–$300", "300_mas": "$300 o más",
   };
 
-  if (type === "primera") {
-    const lines = [
-      "=== SEGUIMIENTO VENTAS WH ===",
-      `Fecha: ${fecha} ${hora} EST`,
-      "Tipo: PRIMERA LLAMADA",
-      `Deal: ${deal || "—"} | Lead: ${lead || "—"}`,
-      `Producto: ${prodLabel}`,
-      "---",
-      `Contestó: ${ansMap[p.contesto] || "—"}`,
-    ];
-    if (p.contesto === "si") {
-      lines.push(`Propietario: ${p.esPropietario === "si" ? "Sí" : p.esPropietario === "no" ? "No" : p.esPropietario === "inquilino" ? "Inquilino" : "—"}`);
-      lines.push(`Sistema solar: ${p.tieneSolar === "si" ? "Sí" : p.tieneSolar === "no" ? "No" : "—"}`);
-      if (p.tieneSolar === "si") lines.push(`Conforme con sistema: ${p.conformeSistema === "si" ? "Sí" : p.conformeSistema === "no" ? "No" : p.conformeSistema === "problemas" ? "Tiene problemas" : "—"}`);
-      lines.push(`Factura LUMA: ${facMap[p.facturaLuma] || "—"}`);
-      lines.push(`Interés: ${interesMap[p.interes] || "—"}`);
-      if (p.interes === "no_interesado" && p.motivoNoInteres) lines.push(`Motivo: ${p.motivoNoInteres}`);
-      lines.push(`Próximo paso: ${pasoMap[p.proximoPaso] || "—"}`);
-      if (p.fechaProximoContacto) lines.push(`Próximo contacto: ${p.fechaProximoContacto}`);
+  const clienteLines = [];
+  if (cliente.nombre) clienteLines.push(`Cliente: ${cliente.nombre}`);
+  if (cliente.telefono) clienteLines.push(`Teléfono: ${cliente.telefono}`);
+  if (cliente.direccion) clienteLines.push(`Dirección: ${cliente.direccion}${cliente.ciudad ? `, ${cliente.ciudad}` : ""}${cliente.zipCode ? ` ${cliente.zipCode}` : ""}`);
+
+  const d = type === "primera" ? p : s;
+  const prodLabel = d.productos.map((v) => PRODUCTOS.find((x) => x.value === v)?.label || v).join(", ") || "—";
+
+  const lines = [
+    "=== SEGUIMIENTO VENTAS WH ===",
+    `Fecha: ${fecha} ${hora} EST`,
+    `Tipo: ${type === "primera" ? "PRIMERA LLAMADA" : "SEGUIMIENTO"}`,
+    `Deal: ${deal || "—"} | Lead: ${lead || "—"}`,
+    ...clienteLines,
+    "---",
+    `Contestó: ${ansMap[d.contesto] || "—"}`,
+  ];
+
+  if (d.contesto === "si") {
+    lines.push(`Resultado: ${d.resultadoLlamada === "venta" ? "✅ VENTA" : "ℹ️ Información General"}`);
+
+    if (d.resultadoLlamada === "venta") {
+      const prodVenta = PRODUCTOS.find((x) => x.value === d.productoVendido)?.label || d.productoVendido || "—";
+      lines.push(`Producto vendido: ${prodVenta}`);
+      lines.push(`Financiera: ${finMap[d.financiera] || d.financiera || "—"}`);
+    } else if (d.resultadoLlamada === "info_general") {
+      lines.push(`Producto(s) discutido(s): ${prodLabel}`);
+
+      // Subs Placas
+      if (d.productos.includes("placas")) {
+        if (d.subs.facturaLuma) lines.push(`  Factura LUMA: ${facMap[d.subs.facturaLuma] || d.subs.facturaLuma}`);
+        if (d.subs.tieneSolar) lines.push(`  Sistema solar: ${d.subs.tieneSolar === "si" ? "Sí" : "No"}`);
+      }
+      // Subs Powerwall
+      if (d.productos.includes("powerwall")) {
+        if (d.subs.solarInstalado) lines.push(`  Solar instalado: ${d.subs.solarInstalado === "si" ? "Sí" : "No"}`);
+        if (d.subs.frecuenciaApagones) lines.push(`  Apagones: ${d.subs.frecuenciaApagones}`);
+      }
+      // Subs Water
+      if (d.productos.includes("water")) {
+        if (d.subs.tipoAgua) lines.push(`  Tipo agua: ${d.subs.tipoAgua}`);
+        if (d.subs.problemasAgua) lines.push(`  Problemas agua: ${d.subs.problemasAgua === "si" ? "Sí" : "No"}`);
+      }
+      // Subs Roofing
+      if (d.productos.includes("roofing")) {
+        if (d.subs.materialTecho) lines.push(`  Material techo: ${d.subs.materialTecho}`);
+        if (d.subs.tieneFiltraciones) lines.push(`  Filtraciones: ${d.subs.tieneFiltraciones}`);
+      }
+      // Subs Anker
+      if (d.productos.includes("anker")) {
+        if (d.subs.solarAnker) lines.push(`  Solar (Anker): ${d.subs.solarAnker === "si" ? "Sí" : "No"}`);
+        if (d.subs.necesitaRespaldo) lines.push(`  Respaldo energía: ${d.subs.necesitaRespaldo}`);
+      }
+
+      if (type === "primera" && "esPropietario" in d) {
+        const pp = d as PrimeraData;
+        if (pp.esPropietario) lines.push(`Propietario: ${pp.esPropietario === "si" ? "Sí" : pp.esPropietario === "no" ? "No" : "Inquilino"}`);
+        if (pp.interes) lines.push(`Interés: ${interesMap[pp.interes] || "—"}`);
+        if (pp.interes === "no_interesado" && pp.motivoNoInteres) lines.push(`Motivo: ${pp.motivoNoInteres}`);
+        if (pp.proximoPaso) lines.push(`Próximo paso: ${pasoMap[pp.proximoPaso] || "—"}`);
+        if (pp.fechaProximoContacto) lines.push(`Próximo contacto: ${pp.fechaProximoContacto}`);
+      }
+
+      if (type === "seguimiento" && "reviso" in d) {
+        const ss = d as SeguimientoData;
+        if (ss.reviso) lines.push(`Revisó información: ${ss.reviso === "si" ? "Sí" : ss.reviso === "no" ? "No" : "Parcialmente"}`);
+        const objList = ss.objeciones.length
+          ? ss.objeciones.map((o) => (o === "Otro" && ss.otraObjecion ? `Otro: ${ss.otraObjecion}` : o)).join(", ")
+          : null;
+        if (objList) lines.push(`Objeciones: ${objList}`);
+        if (ss.interes) lines.push(`Interés: ${interesMap[ss.interes] || "—"}`);
+        if (ss.proximoPaso) lines.push(`Próximo paso: ${pasoMap[ss.proximoPaso] || "—"}`);
+        if (ss.fechaProximoContacto) lines.push(`Próximo contacto: ${ss.fechaProximoContacto}`);
+      }
     }
-    if (p.notas) lines.push("---", `Notas: ${p.notas}`);
-    return lines.join("\n");
-  } else {
-    const objList = s.objeciones.length
-      ? s.objeciones.map((o) => (o === "Otro" && s.otraObjecion ? `Otro: ${s.otraObjecion}` : o)).join(", ")
-      : "Ninguna";
-    const lines = [
-      "=== SEGUIMIENTO VENTAS WH ===",
-      `Fecha: ${fecha} ${hora} EST`,
-      "Tipo: SEGUIMIENTO",
-      `Deal: ${deal || "—"} | Lead: ${lead || "—"}`,
-      `Producto: ${prodLabel}`,
-      "---",
-      `Contestó: ${ansMap[s.contesto] || "—"}`,
-    ];
-    if (s.contesto === "si") {
-      lines.push(`Revisó información: ${s.reviso === "si" ? "Sí" : s.reviso === "no" ? "No" : s.reviso === "parcialmente" ? "Parcialmente" : "—"}`);
-      lines.push(`Objeciones: ${objList}`);
-      lines.push(`Interés actual: ${interesMap[s.interes] || "—"}`);
-      lines.push(`Próximo paso: ${pasoMap[s.proximoPaso] || "—"}`);
-      if (s.fechaProximoContacto) lines.push(`Próximo contacto: ${s.fechaProximoContacto}`);
-    }
-    if (s.notas) lines.push("---", `Notas: ${s.notas}`);
-    return lines.join("\n");
   }
+
+  if (d.notas) lines.push("---", `Notas: ${d.notas}`);
+  return lines.join("\n");
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -190,14 +389,36 @@ export default function SalesNotesForm() {
   const { toast } = useToast();
   const [dealNum, setDealNum] = useState("");
   const [leadNum, setLeadNum] = useState("");
+  const [cliente, setCliente] = useState<ClienteData>(initCliente);
   const [searchDone, setSearchDone] = useState(false);
   const [callType, setCallType] = useState<CallType>(null);
   const [primera, setPrimera] = useState<PrimeraData>(initPrimera);
   const [seguimiento, setSeguimiento] = useState<SeguimientoData>(initSeguimiento);
   const [showNote, setShowNote] = useState(false);
 
+  const setC = (k: keyof ClienteData, v: string) => setCliente((prev) => ({ ...prev, [k]: v }));
   const setP = (k: keyof PrimeraData, v: string) => setPrimera((prev) => ({ ...prev, [k]: v }));
+  const setPSub = (k: keyof ProductoSubs, v: string) => setPrimera((prev) => ({ ...prev, subs: { ...prev.subs, [k]: v } }));
   const setS = (k: keyof SeguimientoData, v: string) => setSeguimiento((prev) => ({ ...prev, [k]: v }));
+  const setSSub = (k: keyof ProductoSubs, v: string) => setSeguimiento((prev) => ({ ...prev, subs: { ...prev.subs, [k]: v } }));
+
+  const toggleProd = (which: "primera" | "seguimiento", val: string) => {
+    if (which === "primera") {
+      setPrimera((prev) => ({
+        ...prev,
+        productos: prev.productos.includes(val)
+          ? prev.productos.filter((x) => x !== val)
+          : [...prev.productos, val],
+      }));
+    } else {
+      setSeguimiento((prev) => ({
+        ...prev,
+        productos: prev.productos.includes(val)
+          ? prev.productos.filter((x) => x !== val)
+          : [...prev.productos, val],
+      }));
+    }
+  };
 
   const toggleObj = (o: string) =>
     setSeguimiento((prev) => ({
@@ -221,6 +442,7 @@ export default function SalesNotesForm() {
 
   const handleReset = () => {
     setDealNum(""); setLeadNum("");
+    setCliente(initCliente);
     setSearchDone(false); setCallType(null);
     setPrimera(initPrimera); setSeguimiento(initSeguimiento);
     setShowNote(false);
@@ -233,7 +455,7 @@ export default function SalesNotesForm() {
     });
   };
 
-  const note = buildNote(dealNum, leadNum, callType, primera, seguimiento);
+  const note = buildNote(dealNum, leadNum, cliente, callType, primera, seguimiento);
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
   return (
@@ -244,12 +466,8 @@ export default function SalesNotesForm() {
         <div className="text-center flex flex-col items-center gap-0 pt-4 mb-2">
           <img src={windmarLogo} alt="Windmar Home" className="h-[7rem] w-auto" />
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-accent leading-none">
-              Notas de Seguimiento
-            </h1>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-primary leading-none">
-              Equipo de Ventas
-            </h2>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-accent leading-none">Notas de Seguimiento</h1>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-primary leading-none">Equipo de Ventas</h2>
           </div>
         </div>
 
@@ -267,6 +485,7 @@ export default function SalesNotesForm() {
                 <Input placeholder="Ej: L-67890" value={leadNum} onChange={(e) => setLeadNum(e.target.value)} className="bg-background" />
               </div>
             </div>
+
             <div className="flex gap-3">
               <Button type="button" variant="windmar" onClick={handleSearch} className="flex-1">
                 <Search className="h-4 w-4 mr-2" />
@@ -278,14 +497,36 @@ export default function SalesNotesForm() {
                 </Button>
               )}
             </div>
+
+            {/* Datos del cliente — placeholder hasta conectar CRM */}
             {searchDone && (
-              <div className="bg-muted/40 rounded-xl p-4 border border-border/40 text-sm">
-                <p className="text-xs font-bold text-primary uppercase mb-1">CRM no conectado</p>
-                <p className="text-muted-foreground text-xs">
-                  Completa los campos manualmente.
-                  {dealNum && <span className="ml-1 font-semibold text-foreground">Deal #{dealNum}</span>}
-                  {leadNum && <span className="ml-1 font-semibold text-foreground">| Lead {leadNum}</span>}
+              <div className="bg-muted/40 rounded-xl p-4 border border-border/40 space-y-3">
+                <p className="text-[10px] font-bold text-primary/60 uppercase tracking-wider">
+                  Datos del cliente
+                  <span className="ml-2 normal-case font-normal text-muted-foreground">(CRM no conectado — ingresa manualmente)</span>
                 </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Nombre Cliente</label>
+                    <Input placeholder="Nombre completo" value={cliente.nombre} onChange={(e) => setC("nombre", e.target.value)} className="bg-background text-sm h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Número Telefónico</label>
+                    <Input placeholder="(787) 000-0000" value={cliente.telefono} onChange={(e) => setC("telefono", e.target.value)} className="bg-background text-sm h-8" />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Dirección</label>
+                    <Input placeholder="Dirección de residencia" value={cliente.direccion} onChange={(e) => setC("direccion", e.target.value)} className="bg-background text-sm h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Ciudad</label>
+                    <Input placeholder="Ciudad o municipio" value={cliente.ciudad} onChange={(e) => setC("ciudad", e.target.value)} className="bg-background text-sm h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Zip Code</label>
+                    <Input placeholder="00000" value={cliente.zipCode} onChange={(e) => setC("zipCode", e.target.value)} className="bg-background text-sm h-8" />
+                  </div>
+                </div>
               </div>
             )}
           </Section>
@@ -303,14 +544,11 @@ export default function SalesNotesForm() {
                     type="button"
                     onClick={() => { setCallType(opt.v as CallType); setShowNote(false); }}
                     className={`rounded-xl border-2 p-4 text-left transition-all ${
-                      callType === opt.v
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                      callType === opt.v ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <div className="text-xl mb-1">{opt.emoji}</div>
                     <p className={`font-extrabold text-sm uppercase tracking-wide ${callType === opt.v ? "text-primary" : "text-foreground/80"}`}>
-                      {opt.title}
+                      {opt.emoji} {opt.title}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p>
                   </button>
@@ -325,151 +563,131 @@ export default function SalesNotesForm() {
 
               {/* 01 ¿Contestó? */}
               <Question num="01" label="¿El cliente contestó la llamada?">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {[
                     { v: "si", l: "SÍ CONTESTÓ" },
                     { v: "no_contesta", l: "NO CONTESTA" },
                     { v: "buzon", l: "BUZÓN DE VOZ" },
-                    { v: "numero_incorrecto", l: "NÚM. INCORRECTO" },
                   ].map((o) => (
-                    <OptBtn key={o.v} active={primera.contesto === o.v} onClick={() => setP("contesto", o.v)} danger={o.v === "numero_incorrecto"}>
-                      {o.l}
-                    </OptBtn>
+                    <OptBtn key={o.v} active={primera.contesto === o.v} onClick={() => setP("contesto", o.v)}>{o.l}</OptBtn>
                   ))}
                 </div>
               </Question>
 
               {primera.contesto === "si" && (
                 <>
-                  {/* 02 Producto */}
-                  <Question num="02" label="¿Qué producto se está ofreciendo?">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {PRODUCTOS.map((p) => (
-                        <OptBtn key={p.value} active={primera.producto === p.value} onClick={() => setP("producto", p.value)}>
-                          {p.label}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
-
-                  {/* 03 Propietario */}
-                  <Question num="03" label="¿El cliente es propietario de la residencia?">
-                    <div className="grid grid-cols-3 gap-3">
-                      {[{ v: "si", l: "SÍ, PROPIETARIO" }, { v: "no", l: "NO ES DUEÑO" }, { v: "inquilino", l: "INQUILINO" }].map((o) => (
-                        <OptBtn key={o.v} active={primera.esPropietario === o.v} onClick={() => setP("esPropietario", o.v)}>
-                          {o.l}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
-
-                  {/* 04 Sistema solar */}
-                  <Question num="04" label="¿Tiene sistema solar actualmente?">
+                  {/* 02 Resultado de la llamada */}
+                  <Question num="02" label="¿Cómo terminó esta llamada?">
                     <div className="grid grid-cols-2 gap-3">
-                      {[{ v: "si", l: "SÍ TIENE" }, { v: "no", l: "NO TIENE" }].map((o) => (
-                        <OptBtn key={o.v} active={primera.tieneSolar === o.v} onClick={() => setP("tieneSolar", o.v)}>
+                      {[
+                        { v: "venta", l: "✅ VENTA CERRADA" },
+                        { v: "info_general", l: "ℹ️ INFORMACIÓN GENERAL" },
+                      ].map((o) => (
+                        <OptBtn key={o.v} active={primera.resultadoLlamada === o.v} onClick={() => setP("resultadoLlamada", o.v)}>
                           {o.l}
                         </OptBtn>
                       ))}
                     </div>
                   </Question>
 
-                  {/* 05 Conforme (condicional: solo si tiene solar) */}
-                  {primera.tieneSolar === "si" && (
-                    <Question num="05" label="¿Está conforme con su sistema solar actual?">
-                      <div className="grid grid-cols-3 gap-3">
-                        {[{ v: "si", l: "SÍ, CONFORME" }, { v: "no", l: "NO CONFORME" }, { v: "problemas", l: "TIENE PROBLEMAS" }].map((o) => (
-                          <OptBtn key={o.v} active={primera.conformeSistema === o.v} onClick={() => setP("conformeSistema", o.v)} danger={o.v === "problemas"}>
-                            {o.l}
-                          </OptBtn>
-                        ))}
-                      </div>
-                    </Question>
+                  {/* VENTA */}
+                  {primera.resultadoLlamada === "venta" && (
+                    <>
+                      <Question num="03" label="¿Qué producto se vendió?">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {PRODUCTOS.map((p) => (
+                            <OptBtn key={p.value} active={primera.productoVendido === p.value} onClick={() => setP("productoVendido", p.value)}>
+                              {p.label}
+                            </OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+                      <Question num="04" label="¿Con qué financiera se procesó?">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {FINANCIERAS.map((f) => (
+                            <OptBtn key={f.v} active={primera.financiera === f.v} onClick={() => setP("financiera", f.v)}>{f.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+                    </>
                   )}
 
-                  {/* 06 Factura LUMA */}
-                  <Question num={primera.tieneSolar === "si" ? "06" : "05"} label="¿Cuánto paga mensualmente en LUMA?">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { v: "menos_100", l: "MENOS $100" },
-                        { v: "100_200", l: "$100 – $200" },
-                        { v: "200_300", l: "$200 – $300" },
-                        { v: "300_mas", l: "$300 O MÁS" },
-                      ].map((o) => (
-                        <OptBtn key={o.v} active={primera.facturaLuma === o.v} onClick={() => setP("facturaLuma", o.v)}>
-                          {o.l}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
+                  {/* INFORMACIÓN GENERAL */}
+                  {primera.resultadoLlamada === "info_general" && (
+                    <>
+                      {/* 03 Productos (multi-select) */}
+                      <Question num="03" label="¿Sobre qué producto(s) se habló? (puede seleccionar varios)">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {PRODUCTOS.map((p) => (
+                            <OptBtn key={p.value} active={primera.productos.includes(p.value)} onClick={() => toggleProd("primera", p.value)}>
+                              {p.label}
+                            </OptBtn>
+                          ))}
+                        </div>
+                      </Question>
 
-                  {/* 07 Nivel de interés */}
-                  <Question num={primera.tieneSolar === "si" ? "07" : "06"} label="Nivel de interés del cliente">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { v: "muy_interesado", l: "🔥 MUY INTERESADO" },
-                        { v: "interesado", l: "👍 INTERESADO" },
-                        { v: "poco_interesado", l: "🤔 POCO INTERESADO" },
-                        { v: "no_interesado", l: "❌ NO INTERESADO" },
-                      ].map((o) => (
-                        <OptBtn key={o.v} active={primera.interes === o.v} onClick={() => setP("interes", o.v)} danger={o.v === "no_interesado"}>
-                          {o.l}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
+                      {/* Sub-preguntas por producto */}
+                      <SubsProducto productos={primera.productos} subs={primera.subs} onChange={setPSub} />
 
-                  {/* Motivo si no interesado (condicional) */}
-                  {primera.interes === "no_interesado" && (
-                    <Question num="↳" label="¿Cuál fue el motivo principal?">
-                      <div className="grid grid-cols-2 gap-3">
-                        {["PRECIO MUY ALTO", "YA TIENE PROVEEDOR", "NO APLICA AL PRODUCTO", "OTRO MOTIVO"].map((m) => (
-                          <OptBtn key={m} active={primera.motivoNoInteres === m} onClick={() => setP("motivoNoInteres", m)}>
-                            {m}
-                          </OptBtn>
-                        ))}
-                      </div>
-                    </Question>
-                  )}
+                      {/* 04 Propietario */}
+                      <Question num="04" label="¿El cliente es propietario de la residencia?">
+                        <div className="grid grid-cols-3 gap-3">
+                          {[{ v: "si", l: "SÍ, PROPIETARIO" }, { v: "no", l: "NO ES DUEÑO" }, { v: "inquilino", l: "INQUILINO" }].map((o) => (
+                            <OptBtn key={o.v} active={primera.esPropietario === o.v} onClick={() => setP("esPropietario", o.v)}>{o.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
 
-                  {/* Próximo paso */}
-                  <Question num={primera.tieneSolar === "si" ? "08" : "07"} label="¿Cuál es el próximo paso?">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {[
-                        { v: "enviar_propuesta", l: "📄 ENVIAR PROPUESTA" },
-                        { v: "volver_llamar", l: "📅 VOLVER A LLAMAR" },
-                        { v: "cerrar", l: "🚫 CERRAR OPORTUNIDAD" },
-                      ].map((o) => (
-                        <OptBtn key={o.v} active={primera.proximoPaso === o.v} onClick={() => setP("proximoPaso", o.v)} danger={o.v === "cerrar"}>
-                          {o.l}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
+                      {/* 05 Nivel de interés */}
+                      <Question num="05" label="Nivel de interés del cliente">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {[
+                            { v: "muy_interesado", l: "MUY INTERESADO" },
+                            { v: "interesado", l: "INTERESADO" },
+                            { v: "poco_interesado", l: "POCO INTERESADO" },
+                            { v: "no_interesado", l: "NO INTERESADO" },
+                          ].map((o) => (
+                            <OptBtn key={o.v} active={primera.interes === o.v} onClick={() => setP("interes", o.v)} danger={o.v === "no_interesado"}>{o.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
 
-                  {/* Fecha próximo contacto (condicional) */}
-                  {primera.proximoPaso === "volver_llamar" && (
-                    <Question num="↳" label="Fecha de próximo contacto">
-                      <Input
-                        type="date"
-                        value={primera.fechaProximoContacto}
-                        onChange={(e) => setP("fechaProximoContacto", e.target.value)}
-                        className="max-w-xs bg-background"
-                      />
-                    </Question>
+                      {primera.interes === "no_interesado" && (
+                        <Question num="↳" label="¿Cuál fue el motivo?">
+                          <div className="grid grid-cols-2 gap-3">
+                            {["PRECIO MUY ALTO", "YA TIENE PROVEEDOR", "NO APLICA", "OTRO MOTIVO"].map((m) => (
+                              <OptBtn key={m} active={primera.motivoNoInteres === m} onClick={() => setP("motivoNoInteres", m)}>{m}</OptBtn>
+                            ))}
+                          </div>
+                        </Question>
+                      )}
+
+                      {/* 06 Próximo paso */}
+                      <Question num="06" label="¿Cuál es el próximo paso?">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {[
+                            { v: "enviar_propuesta", l: "ENVIAR PROPUESTA" },
+                            { v: "volver_llamar", l: "VOLVER A LLAMAR" },
+                            { v: "cerrar", l: "CERRAR OPORTUNIDAD" },
+                          ].map((o) => (
+                            <OptBtn key={o.v} active={primera.proximoPaso === o.v} onClick={() => setP("proximoPaso", o.v)} danger={o.v === "cerrar"}>{o.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+
+                      {primera.proximoPaso === "volver_llamar" && (
+                        <Question num="↳" label="Fecha de próximo contacto">
+                          <Input type="date" value={primera.fechaProximoContacto} onChange={(e) => setP("fechaProximoContacto", e.target.value)} className="max-w-xs bg-background" />
+                        </Question>
+                      )}
+                    </>
                   )}
                 </>
               )}
 
               {/* Notas adicionales */}
               <Question num="📝" label="Notas adicionales de la llamada">
-                <Textarea
-                  placeholder="Escribe cualquier detalle relevante..."
-                  value={primera.notas}
-                  onChange={(e) => setP("notas", e.target.value)}
-                  rows={3}
-                  className="bg-background resize-none"
-                />
+                <Textarea placeholder="Escribe cualquier detalle relevante..." value={primera.notas} onChange={(e) => setP("notas", e.target.value)} rows={3} className="bg-background resize-none" />
               </Question>
             </Section>
           )}
@@ -480,118 +698,128 @@ export default function SalesNotesForm() {
 
               {/* 01 ¿Contestó? */}
               <Question num="01" label="¿El cliente contestó la llamada?">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {[
                     { v: "si", l: "SÍ CONTESTÓ" },
                     { v: "no_contesta", l: "NO CONTESTA" },
                     { v: "buzon", l: "BUZÓN DE VOZ" },
-                    { v: "numero_incorrecto", l: "NÚM. INCORRECTO" },
                   ].map((o) => (
-                    <OptBtn key={o.v} active={seguimiento.contesto === o.v} onClick={() => setS("contesto", o.v)} danger={o.v === "numero_incorrecto"}>
-                      {o.l}
-                    </OptBtn>
+                    <OptBtn key={o.v} active={seguimiento.contesto === o.v} onClick={() => setS("contesto", o.v)}>{o.l}</OptBtn>
                   ))}
                 </div>
               </Question>
 
               {seguimiento.contesto === "si" && (
                 <>
-                  {/* 02 Producto */}
-                  <Question num="02" label="¿Qué producto se está trabajando?">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {PRODUCTOS.map((p) => (
-                        <OptBtn key={p.value} active={seguimiento.producto === p.value} onClick={() => setS("producto", p.value)}>
-                          {p.label}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
-
-                  {/* 03 Revisó información */}
-                  <Question num="03" label="¿El cliente revisó la información enviada?">
-                    <div className="grid grid-cols-3 gap-3">
-                      {[{ v: "si", l: "SÍ REVISÓ" }, { v: "no", l: "NO REVISÓ" }, { v: "parcialmente", l: "PARCIALMENTE" }].map((o) => (
-                        <OptBtn key={o.v} active={seguimiento.reviso === o.v} onClick={() => setS("reviso", o.v)}>
-                          {o.l}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
-
-                  {/* 04 Objeciones */}
-                  <Question num="04" label="Objeciones del cliente (puede marcar varias)">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {OBJECIONES.map((o) => (
-                        <OptBtn key={o} active={seguimiento.objeciones.includes(o)} onClick={() => toggleObj(o)}>
-                          {o.toUpperCase()}
-                        </OptBtn>
-                      ))}
-                    </div>
-                    {seguimiento.objeciones.includes("Otro") && (
-                      <Input
-                        className="mt-3 bg-background"
-                        placeholder="Describir otra objeción..."
-                        value={seguimiento.otraObjecion}
-                        onChange={(e) => setS("otraObjecion", e.target.value)}
-                      />
-                    )}
-                  </Question>
-
-                  {/* 05 Nivel de interés */}
-                  <Question num="05" label="Nivel de interés actual del cliente">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { v: "muy_interesado", l: "🔥 MUY INTERESADO" },
-                        { v: "interesado", l: "👍 INTERESADO" },
-                        { v: "poco_interesado", l: "🤔 POCO INTERESADO" },
-                        { v: "no_interesado", l: "❌ NO INTERESADO" },
-                      ].map((o) => (
-                        <OptBtn key={o.v} active={seguimiento.interes === o.v} onClick={() => setS("interes", o.v)} danger={o.v === "no_interesado"}>
-                          {o.l}
-                        </OptBtn>
-                      ))}
-                    </div>
-                  </Question>
-
-                  {/* 06 Próximo paso */}
-                  <Question num="06" label="¿Cuál es el próximo paso?">
+                  {/* 02 Resultado */}
+                  <Question num="02" label="¿Cómo terminó este seguimiento?">
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { v: "enviar_propuesta", l: "📄 ENVIAR PROPUESTA" },
-                        { v: "agendar_cierre", l: "🤝 AGENDAR CIERRE" },
-                        { v: "volver_llamar", l: "📅 VOLVER A LLAMAR" },
-                        { v: "cerrar", l: "🚫 CERRAR OPORTUNIDAD" },
+                        { v: "venta", l: "✅ VENTA CERRADA" },
+                        { v: "info_general", l: "ℹ️ SEGUIMIENTO ACTIVO" },
                       ].map((o) => (
-                        <OptBtn key={o.v} active={seguimiento.proximoPaso === o.v} onClick={() => setS("proximoPaso", o.v)} danger={o.v === "cerrar"}>
-                          {o.l}
-                        </OptBtn>
+                        <OptBtn key={o.v} active={seguimiento.resultadoLlamada === o.v} onClick={() => setS("resultadoLlamada", o.v)}>{o.l}</OptBtn>
                       ))}
                     </div>
                   </Question>
 
-                  {/* Fecha próximo contacto (condicional) */}
-                  {(seguimiento.proximoPaso === "volver_llamar" || seguimiento.proximoPaso === "agendar_cierre") && (
-                    <Question num="↳" label="Fecha de próximo contacto">
-                      <Input
-                        type="date"
-                        value={seguimiento.fechaProximoContacto}
-                        onChange={(e) => setS("fechaProximoContacto", e.target.value)}
-                        className="max-w-xs bg-background"
-                      />
-                    </Question>
+                  {/* VENTA */}
+                  {seguimiento.resultadoLlamada === "venta" && (
+                    <>
+                      <Question num="03" label="¿Qué producto se vendió?">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {PRODUCTOS.map((p) => (
+                            <OptBtn key={p.value} active={seguimiento.productoVendido === p.value} onClick={() => setS("productoVendido", p.value)}>{p.label}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+                      <Question num="04" label="¿Con qué financiera se procesó?">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {FINANCIERAS.map((f) => (
+                            <OptBtn key={f.v} active={seguimiento.financiera === f.v} onClick={() => setS("financiera", f.v)}>{f.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+                    </>
+                  )}
+
+                  {/* SEGUIMIENTO ACTIVO */}
+                  {seguimiento.resultadoLlamada === "info_general" && (
+                    <>
+                      {/* 03 Productos */}
+                      <Question num="03" label="¿Sobre qué producto(s) se habló? (puede seleccionar varios)">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {PRODUCTOS.map((p) => (
+                            <OptBtn key={p.value} active={seguimiento.productos.includes(p.value)} onClick={() => toggleProd("seguimiento", p.value)}>{p.label}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+
+                      {/* Sub-preguntas */}
+                      <SubsProducto productos={seguimiento.productos} subs={seguimiento.subs} onChange={setSSub} />
+
+                      {/* 04 Revisó */}
+                      <Question num="04" label="¿El cliente revisó la información enviada?">
+                        <div className="grid grid-cols-3 gap-3">
+                          {[{ v: "si", l: "SÍ REVISÓ" }, { v: "no", l: "NO REVISÓ" }, { v: "parcialmente", l: "PARCIALMENTE" }].map((o) => (
+                            <OptBtn key={o.v} active={seguimiento.reviso === o.v} onClick={() => setS("reviso", o.v)}>{o.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+
+                      {/* 05 Objeciones */}
+                      <Question num="05" label="Objeciones del cliente (puede marcar varias)">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {OBJECIONES.map((o) => (
+                            <OptBtn key={o} active={seguimiento.objeciones.includes(o)} onClick={() => toggleObj(o)}>{o.toUpperCase()}</OptBtn>
+                          ))}
+                        </div>
+                        {seguimiento.objeciones.includes("Otro") && (
+                          <Input className="mt-3 bg-background" placeholder="Describir otra objeción..." value={seguimiento.otraObjecion} onChange={(e) => setS("otraObjecion", e.target.value)} />
+                        )}
+                      </Question>
+
+                      {/* 06 Interés */}
+                      <Question num="06" label="Nivel de interés actual del cliente">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {[
+                            { v: "muy_interesado", l: "MUY INTERESADO" },
+                            { v: "interesado", l: "INTERESADO" },
+                            { v: "poco_interesado", l: "POCO INTERESADO" },
+                            { v: "no_interesado", l: "NO INTERESADO" },
+                          ].map((o) => (
+                            <OptBtn key={o.v} active={seguimiento.interes === o.v} onClick={() => setS("interes", o.v)} danger={o.v === "no_interesado"}>{o.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+
+                      {/* 07 Próximo paso */}
+                      <Question num="07" label="¿Cuál es el próximo paso?">
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { v: "enviar_propuesta", l: "ENVIAR PROPUESTA" },
+                            { v: "agendar_cierre", l: "AGENDAR CIERRE" },
+                            { v: "volver_llamar", l: "VOLVER A LLAMAR" },
+                            { v: "cerrar", l: "CERRAR OPORTUNIDAD" },
+                          ].map((o) => (
+                            <OptBtn key={o.v} active={seguimiento.proximoPaso === o.v} onClick={() => setS("proximoPaso", o.v)} danger={o.v === "cerrar"}>{o.l}</OptBtn>
+                          ))}
+                        </div>
+                      </Question>
+
+                      {(seguimiento.proximoPaso === "volver_llamar" || seguimiento.proximoPaso === "agendar_cierre") && (
+                        <Question num="↳" label="Fecha de próximo contacto">
+                          <Input type="date" value={seguimiento.fechaProximoContacto} onChange={(e) => setS("fechaProximoContacto", e.target.value)} className="max-w-xs bg-background" />
+                        </Question>
+                      )}
+                    </>
                   )}
                 </>
               )}
 
               {/* Notas adicionales */}
               <Question num="📝" label="Notas adicionales de la llamada">
-                <Textarea
-                  placeholder="Escribe cualquier detalle relevante..."
-                  value={seguimiento.notas}
-                  onChange={(e) => setS("notas", e.target.value)}
-                  rows={3}
-                  className="bg-background resize-none"
-                />
+                <Textarea placeholder="Escribe cualquier detalle relevante..." value={seguimiento.notas} onChange={(e) => setS("notas", e.target.value)} rows={3} className="bg-background resize-none" />
               </Question>
             </Section>
           )}
@@ -599,26 +827,15 @@ export default function SalesNotesForm() {
           {/* ── SECCIÓN 4: NOTA + GUARDAR ── */}
           {callType && (
             <Section title="Nota generada">
-              <button
-                type="button"
-                onClick={() => setShowNote(!showNote)}
-                className="text-xs font-bold text-primary underline underline-offset-2"
-              >
+              <button type="button" onClick={() => setShowNote(!showNote)} className="text-xs font-bold text-primary underline underline-offset-2">
                 {showNote ? "Ocultar vista previa" : "Ver vista previa de nota para Zoho"}
               </button>
-
               {showNote && (
                 <pre className="bg-muted rounded-xl p-4 text-xs text-foreground/80 font-mono leading-relaxed whitespace-pre-wrap border border-border/40">
                   {note}
                 </pre>
               )}
-
-              <Button
-                type="button"
-                variant="windmar"
-                className="w-full h-12 text-sm font-extrabold"
-                onClick={handleSave}
-              >
+              <Button type="button" variant="windmar" className="w-full h-12 text-sm font-extrabold" onClick={handleSave}>
                 Guardar Nota en Zoho CRM
               </Button>
               <p className="text-center text-[10px] text-muted-foreground">
