@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, RotateCcw } from "lucide-react";
+import { Search, RotateCcw, UserPlus } from "lucide-react";
 import windmarLogo from "@/assets/windmar-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -413,15 +413,11 @@ function buildNote(
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-/** Detecta si el ID ingresado corresponde a Lead o Deal */
-function detectModuleLabel(id: string): "LEAD" | "DEAL" | null {
-  if (!id.trim()) return null;
-  return /^L\d/i.test(id.trim()) ? "LEAD" : "DEAL";
-}
-
 export default function SalesNotesForm() {
   const { toast } = useToast();
-  const [searchId, setSearchId] = useState("");
+  const [dealNum, setDealNum] = useState("");
+  const [leadNum, setLeadNum] = useState("");
+  const [newLeadNum, setNewLeadNum] = useState("");
   const [cliente, setCliente] = useState<ClienteData>(initCliente);
   const [searchDone, setSearchDone] = useState(false);
   const [callType, setCallType] = useState<CallType>(null);
@@ -460,13 +456,14 @@ export default function SalesNotesForm() {
         : [...prev.objeciones, o],
     }));
 
-  // Demo: solo valida el campo y abre el formulario para ingreso manual
+  // Demo: valida que haya al menos un número y abre el formulario manual
   const handleSearch = () => {
-    if (!searchId.trim()) {
-      toast({ title: "Ingresa el número de Lead o contrato", variant: "destructive" });
+    if (!dealNum.trim() && !leadNum.trim()) {
+      toast({ title: "Ingresa un número de Deal o Lead", variant: "destructive" });
       return;
     }
     setCliente(initCliente);
+    setNewLeadNum("");
     setSearchDone(true);
     setCallType(null);
     setShowNote(false);
@@ -474,8 +471,29 @@ export default function SalesNotesForm() {
     setSeguimiento(initSeguimiento);
   };
 
+  // Demo: genera un número de Lead nuevo (cuando Zoho esté conectado creará el registro real)
+  const handleCreateLead = () => {
+    const digits = String(Math.floor(100000 + Math.random() * 900000));
+    const generated = `L${digits}`;
+    setLeadNum(generated);
+    setNewLeadNum(generated);
+    setDealNum("");
+    setCliente(initCliente);
+    setSearchDone(true);
+    setCallType(null);
+    setShowNote(false);
+    setPrimera(initPrimera);
+    setSeguimiento(initSeguimiento);
+    toast({
+      title: `Lead creado: ${generated}`,
+      description: "Número generado en modo demo. Al conectar Zoho CRM se creará el registro real.",
+    });
+  };
+
   const handleReset = () => {
-    setSearchId("");
+    setDealNum("");
+    setLeadNum("");
+    setNewLeadNum("");
     setCliente(initCliente);
     setSearchDone(false);
     setCallType(null);
@@ -492,13 +510,7 @@ export default function SalesNotesForm() {
     });
   };
 
-  const moduleLabel = detectModuleLabel(searchId);
-  const isLead = moduleLabel === "LEAD";
-  const note = buildNote(
-    isLead ? "" : searchId,
-    isLead ? searchId : "",
-    cliente, callType, primera, seguimiento
-  );
+  const note = buildNote(dealNum, leadNum, cliente, callType, primera, seguimiento);
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
   return (
@@ -518,36 +530,53 @@ export default function SalesNotesForm() {
 
           {/* ── SECCIÓN 1: IDENTIFICACIÓN ── */}
           <Section title="Identificación del cliente">
+
+            {/* DEAL + botón Crear Lead */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Número de Lead o Contrato
-                </label>
-                {searchId.trim() && moduleLabel && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    moduleLabel === "LEAD"
-                      ? "bg-accent/15 text-accent"
-                      : "bg-primary/15 text-primary"
-                  }`}>
-                    {moduleLabel === "LEAD" ? "📋 LEAD" : "📁 DEAL / CONTRATO"}
-                  </span>
-                )}
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Número de Deal</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ej: R12345, W12345, 12345..."
+                  value={dealNum}
+                  onChange={(e) => setDealNum(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="bg-background"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCreateLead}
+                  className="shrink-0 gap-1.5 border-accent text-accent hover:bg-accent hover:text-white px-3"
+                  title="Crear nuevo Lead desde este Deal"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="text-xs font-bold hidden sm:inline">Nuevo Lead</span>
+                </Button>
               </div>
-              <Input
-                placeholder="L786631 · R12345JohnSmith · W12345... · PPS12345... · 12345..."
-                value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="bg-background font-mono text-sm"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Lead: <span className="font-mono">L786631</span> &nbsp;|&nbsp;
-                Roofing: <span className="font-mono">R...</span> &nbsp;|&nbsp;
-                Water: <span className="font-mono">W...</span> &nbsp;|&nbsp;
-                Anker: <span className="font-mono">PPS...</span> &nbsp;|&nbsp;
-                Placas: <span className="font-mono">números</span>
-              </p>
             </div>
+
+            {/* LEAD */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Número de Lead</label>
+              <Input
+                placeholder="Ej: L786631  (se llena automático al crear)"
+                value={leadNum}
+                onChange={(e) => setLeadNum(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="bg-background"
+              />
+            </div>
+
+            {/* Badge del lead recién creado */}
+            {newLeadNum && (
+              <div className="flex items-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-2.5">
+                <UserPlus className="h-4 w-4 text-accent shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-accent uppercase tracking-wide">Nuevo Lead creado</p>
+                  <p className="text-sm font-mono font-bold text-foreground">{newLeadNum}</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <Button type="button" variant="windmar" onClick={handleSearch} className="flex-1">
@@ -573,6 +602,10 @@ export default function SalesNotesForm() {
                     <Input placeholder="Nombre completo" value={cliente.nombre} onChange={(e) => setC("nombre", e.target.value)} className="bg-background text-sm h-8" />
                   </div>
                   <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Correo Electrónico</label>
+                    <Input placeholder="correo@ejemplo.com" value={cliente.correo} onChange={(e) => setC("correo", e.target.value)} className="bg-background text-sm h-8" type="email" />
+                  </div>
+                  <div className="space-y-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Número Telefónico</label>
                     <Input placeholder="(787) 000-0000" value={cliente.telefono} onChange={(e) => setC("telefono", e.target.value)} className="bg-background text-sm h-8" />
                   </div>
@@ -587,10 +620,6 @@ export default function SalesNotesForm() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Zip Code</label>
                     <Input placeholder="00000" value={cliente.zipCode} onChange={(e) => setC("zipCode", e.target.value)} className="bg-background text-sm h-8" />
-                  </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Correo Electrónico</label>
-                    <Input placeholder="correo@ejemplo.com" value={cliente.correo} onChange={(e) => setC("correo", e.target.value)} className="bg-background text-sm h-8" type="email" />
                   </div>
                 </div>
               </div>
