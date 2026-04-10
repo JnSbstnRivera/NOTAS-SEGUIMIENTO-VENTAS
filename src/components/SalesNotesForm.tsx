@@ -433,7 +433,6 @@ export default function SalesNotesForm() {
   const setP = (k: keyof PrimeraData, v: string) => setPrimera((prev) => ({ ...prev, [k]: v }));
   const setPSub = (k: keyof ProductoSubs, v: string) => setPrimera((prev) => ({ ...prev, subs: { ...prev.subs, [k]: v } }));
   const setS = (k: keyof SeguimientoData, v: string) => setSeguimiento((prev) => ({ ...prev, [k]: v }));
-  const setSSub = (k: keyof ProductoSubs, v: string) => setSeguimiento((prev) => ({ ...prev, subs: { ...prev.subs, [k]: v } }));
 
   const toggleProd = (which: "primera" | "seguimiento", val: string) => {
     if (which === "primera") {
@@ -538,9 +537,8 @@ export default function SalesNotesForm() {
                 placeholder="L786631 · R12345JohnSmith · W12345... · PPS12345... · 12345..."
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !searching && handleSearch()}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="bg-background font-mono text-sm"
-                disabled={searching}
               />
               <p className="text-[10px] text-muted-foreground">
                 Lead: <span className="font-mono">L786631</span> &nbsp;|&nbsp;
@@ -552,21 +550,9 @@ export default function SalesNotesForm() {
             </div>
 
             <div className="flex gap-3">
-              <Button type="button" variant="windmar" onClick={handleSearch} disabled={searching} className="flex-1">
-                {searching ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                    Buscando en CRM...
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Cargar Cliente
-                  </>
-                )}
+              <Button type="button" variant="windmar" onClick={handleSearch} className="flex-1">
+                <Search className="h-4 w-4 mr-2" />
+                Cargar Cliente
               </Button>
               {searchDone && (
                 <Button type="button" variant="outline" onClick={handleReset} size="icon" title="Nueva consulta">
