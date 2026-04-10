@@ -27,9 +27,10 @@ interface ProductoSubs {
   // Powerwall
   solarInstalado: string;
   frecuenciaApagones: string;
-  // Water
-  tipoAgua: string;
-  problemasAgua: string;
+  // Water (3 sub-preguntas)
+  tipoAgua: string;       // cisterna
+  problemasAgua: string;  // calentador
+  waterOsmosis: string;   // reverse osmosis
   // Roofing
   materialTecho: string;
   tieneFiltraciones: string;
@@ -76,7 +77,7 @@ interface SeguimientoData {
 const initSubs: ProductoSubs = {
   facturaLuma: "", tieneSolar: "",
   solarInstalado: "", frecuenciaApagones: "",
-  tipoAgua: "", problemasAgua: "",
+  tipoAgua: "", problemasAgua: "", waterOsmosis: "",
   materialTecho: "", tieneFiltraciones: "",
   solarAnker: "", necesitaRespaldo: "",
 };
@@ -214,17 +215,39 @@ function SubsProducto({
       {/* WATER */}
       {productos.includes("water") && (
         <>
-          <Question num="2.1" label="¿Qué tipo de agua utiliza actualmente?" sub>
-            <div className="grid grid-cols-3 gap-3">
-              {[{ v: "prasa", l: "PRASA" }, { v: "pozo", l: "POZO" }, { v: "filtros", l: "FILTROS / BOTELLA" }].map((o) => (
+          <Question num="2.1" label="Cisterna — ¿Tiene problemas con el agua de la llave?" sub>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { v: "cortes_frecuentes", l: "CORTES FRECUENTES" },
+                { v: "baja_presion", l: "BAJA PRESIÓN" },
+                { v: "necesita_almacenamiento", l: "NECESITA ALMACENAMIENTO" },
+                { v: "sin_problema", l: "SIN PROBLEMA" },
+              ].map((o) => (
                 <OptBtn key={o.v} active={subs.tipoAgua === o.v} onClick={() => onChange("tipoAgua", o.v)}>{o.l}</OptBtn>
               ))}
             </div>
           </Question>
-          <Question num="2.2" label="¿Tiene problemas con la calidad del agua?" sub>
-            <div className="grid grid-cols-2 gap-3">
-              {[{ v: "si", l: "SÍ, HAY PROBLEMAS" }, { v: "no", l: "NO HAY PROBLEMAS" }].map((o) => (
+          <Question num="2.2" label="Calentador Solar — ¿Cómo calienta el agua actualmente?" sub>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { v: "electrico", l: "CALENTADOR ELÉCTRICO" },
+                { v: "gas", l: "CALENTADOR DE GAS" },
+                { v: "solar_existente", l: "CALENTADOR SOLAR" },
+                { v: "sin_calentador", l: "SIN CALENTADOR" },
+              ].map((o) => (
                 <OptBtn key={o.v} active={subs.problemasAgua === o.v} onClick={() => onChange("problemasAgua", o.v)}>{o.l}</OptBtn>
+              ))}
+            </div>
+          </Question>
+          <Question num="2.3" label="Reverse Osmosis — ¿Cómo obtiene agua para tomar?" sub>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { v: "compra_botella", l: "COMPRA BOTELLONES" },
+                { v: "filtro_existente", l: "TIENE FILTRO" },
+                { v: "llave_directo", l: "TOMA DE LA LLAVE" },
+                { v: "sin_sistema", l: "SIN SISTEMA" },
+              ].map((o) => (
+                <OptBtn key={o.v} active={subs.waterOsmosis === o.v} onClick={() => onChange("waterOsmosis", o.v)}>{o.l}</OptBtn>
               ))}
             </div>
           </Question>
@@ -342,8 +365,9 @@ function buildNote(
       }
       // Subs Water
       if (d.productos.includes("water")) {
-        if (d.subs.tipoAgua) lines.push(`  Tipo agua: ${d.subs.tipoAgua}`);
-        if (d.subs.problemasAgua) lines.push(`  Problemas agua: ${d.subs.problemasAgua === "si" ? "Sí" : "No"}`);
+        if (d.subs.tipoAgua) lines.push(`  Cisterna: ${d.subs.tipoAgua.replace(/_/g, " ")}`);
+        if (d.subs.problemasAgua) lines.push(`  Calentador: ${d.subs.problemasAgua.replace(/_/g, " ")}`);
+        if (d.subs.waterOsmosis) lines.push(`  Agua tomar: ${d.subs.waterOsmosis.replace(/_/g, " ")}`);
       }
       // Subs Roofing
       if (d.productos.includes("roofing")) {
@@ -642,10 +666,10 @@ export default function SalesNotesForm() {
                       <Question num="05" label="Nivel de interés del cliente">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           {[
-                            { v: "muy_interesado", l: "MUY INTERESADO" },
-                            { v: "interesado", l: "INTERESADO" },
-                            { v: "poco_interesado", l: "POCO INTERESADO" },
-                            { v: "no_interesado", l: "NO INTERESADO" },
+                            { v: "muy_interesado", l: "🔥 MUY INTERESADO" },
+                            { v: "interesado", l: "✅ INTERESADO" },
+                            { v: "poco_interesado", l: "🧊 POCO INTERESADO" },
+                            { v: "no_interesado", l: "❄️ NO INTERESADO" },
                           ].map((o) => (
                             <OptBtn key={o.v} active={primera.interes === o.v} onClick={() => setP("interes", o.v)} danger={o.v === "no_interesado"}>{o.l}</OptBtn>
                           ))}
@@ -783,10 +807,10 @@ export default function SalesNotesForm() {
                       <Question num="06" label="Nivel de interés actual del cliente">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           {[
-                            { v: "muy_interesado", l: "MUY INTERESADO" },
-                            { v: "interesado", l: "INTERESADO" },
-                            { v: "poco_interesado", l: "POCO INTERESADO" },
-                            { v: "no_interesado", l: "NO INTERESADO" },
+                            { v: "muy_interesado", l: "🔥 MUY INTERESADO" },
+                            { v: "interesado", l: "✅ INTERESADO" },
+                            { v: "poco_interesado", l: "🧊 POCO INTERESADO" },
+                            { v: "no_interesado", l: "❄️ NO INTERESADO" },
                           ].map((o) => (
                             <OptBtn key={o.v} active={seguimiento.interes === o.v} onClick={() => setS("interes", o.v)} danger={o.v === "no_interesado"}>{o.l}</OptBtn>
                           ))}
