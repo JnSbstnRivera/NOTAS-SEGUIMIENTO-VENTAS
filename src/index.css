@@ -108,3 +108,79 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Splash Screen Animations ─────────────────────────────────────────────── */
+
+@keyframes splashLogoIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes splashTextIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splashLineGrow {
+  from { width: 0; opacity: 0; }
+  to   { width: 3.5rem; opacity: 1; }
+}
+
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; pointer-events: none; }
+}
+
+.splash-container {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background-color: hsl(var(--primary));
+  animation: splashFadeOut 0.55s ease-in 1.5s forwards;
+}
+
+.splash-logo {
+  animation: splashLogoIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.splash-img {
+  height: 9rem;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+.splash-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  animation: splashTextIn 0.55s ease-out 0.55s both;
+}
+
+.splash-title-orange {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: hsl(var(--accent));
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.splash-title-white {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.splash-line {
+  height: 3px;
+  border-radius: 9999px;
+  background-color: hsl(var(--accent));
+  animation: splashLineGrow 0.5s ease-out 0.7s both;
+}
