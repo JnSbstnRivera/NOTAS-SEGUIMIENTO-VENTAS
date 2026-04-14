@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 
 type CallType = "primera" | "seguimiento" | null;
 
-// Datos del cliente (CRM placeholder / futuro Zoho)
 interface ClienteData {
   nombre: string;
   direccion: string;
@@ -20,22 +19,16 @@ interface ClienteData {
   correo: string;
 }
 
-// Sub-preguntas por producto
 interface ProductoSubs {
-  // Placas
   facturaLuma: string;
   tieneSolar: string;
-  // Powerwall
   solarInstalado: string;
   frecuenciaApagones: string;
-  // Water (3 sub-preguntas)
-  tipoAgua: string;       // cisterna
-  problemasAgua: string;  // calentador
-  waterOsmosis: string;   // reverse osmosis
-  // Roofing
+  tipoAgua: string;
+  problemasAgua: string;
+  waterOsmosis: string;
   materialTecho: string;
   tieneFiltraciones: string;
-  // Anker
   solarAnker: string;
   necesitaRespaldo: string;
 }
@@ -43,12 +36,18 @@ interface ProductoSubs {
 interface PrimeraData {
   contesto: string;
   intentos: string;
-  resultadoLlamada: string; // "venta" | "info_general"
-  // Venta
+  resultadoLlamada: string;
+  // Venta cerrada
   productoVendido: string;
+  subProductoVendido: string;
+  cantidadPlacasVendidas: string;
+  cantidadBateriasVendidas: string;
   financiera: string;
   // Info general
-  productos: string[];
+  producto: string;
+  subProducto: string;
+  cantidadPlacas: string;
+  cantidadBaterias: string;
   subs: ProductoSubs;
   esPropietario: string;
   interes: string;
@@ -61,12 +60,18 @@ interface PrimeraData {
 interface SeguimientoData {
   contesto: string;
   intentos: string;
-  resultadoLlamada: string; // "venta" | "info_general"
-  // Venta
+  resultadoLlamada: string;
+  // Venta cerrada
   productoVendido: string;
+  subProductoVendido: string;
+  cantidadPlacasVendidas: string;
+  cantidadBateriasVendidas: string;
   financiera: string;
-  // Info general
-  productos: string[];
+  // Seguimiento activo
+  producto: string;
+  subProducto: string;
+  cantidadPlacas: string;
+  cantidadBaterias: string;
   subs: ProductoSubs;
   reviso: string;
   objeciones: string[];
@@ -86,26 +91,67 @@ const initSubs: ProductoSubs = {
 };
 
 const initPrimera: PrimeraData = {
-  contesto: "", intentos: "", resultadoLlamada: "", productoVendido: "", financiera: "",
-  productos: [], subs: { ...initSubs }, esPropietario: "", interes: "",
-  motivoNoInteres: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
+  contesto: "", intentos: "", resultadoLlamada: "",
+  productoVendido: "", subProductoVendido: "", cantidadPlacasVendidas: "", cantidadBateriasVendidas: "",
+  financiera: "",
+  producto: "", subProducto: "", cantidadPlacas: "", cantidadBaterias: "",
+  subs: { ...initSubs },
+  esPropietario: "", interes: "", motivoNoInteres: "",
+  proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
 
 const initSeguimiento: SeguimientoData = {
-  contesto: "", intentos: "", resultadoLlamada: "", productoVendido: "", financiera: "",
-  productos: [], subs: { ...initSubs }, reviso: "", objeciones: [],
-  otraObjecion: "", interes: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
+  contesto: "", intentos: "", resultadoLlamada: "",
+  productoVendido: "", subProductoVendido: "", cantidadPlacasVendidas: "", cantidadBateriasVendidas: "",
+  financiera: "",
+  producto: "", subProducto: "", cantidadPlacas: "", cantidadBaterias: "",
+  subs: { ...initSubs },
+  reviso: "", objeciones: [], otraObjecion: "",
+  interes: "", proximoPaso: "", fechaProximoContacto: "", notas: "",
 };
 
 const initCliente: ClienteData = { nombre: "", direccion: "", zipCode: "", ciudad: "", telefono: "", correo: "" };
 
 const PRODUCTOS = [
   { value: "placas", label: "PLACAS SOLARES" },
+  { value: "placas_bateria", label: "PLACAS + BATERÍA" },
   { value: "powerwall", label: "BATERÍA POWERWALL" },
   { value: "water", label: "WATER" },
   { value: "roofing", label: "ROOFING" },
   { value: "anker", label: "ANKER" },
 ];
+
+const SUBPRODUCTOS: Record<string, { value: string; label: string }[]> = {
+  roofing: [
+    { value: "silver", label: "SILVER" },
+    { value: "gold", label: "GOLD" },
+    { value: "platinum", label: "PLATINUM" },
+  ],
+  powerwall: [
+    { value: "powerwall_2", label: "POWERWALL 2" },
+    { value: "powerwall_3", label: "POWERWALL 3" },
+  ],
+  anker: [
+    { value: "anker_2600", label: "ANKER 2600" },
+    { value: "anker_3800", label: "ANKER 3800" },
+    { value: "panel_400w", label: "PANEL 400W" },
+    { value: "panel_200w", label: "PANEL 200W" },
+    { value: "expansion_2600", label: "EXPANSIÓN 2600" },
+    { value: "expansion_3800", label: "EXPANSIÓN 3800" },
+    { value: "transfer_manual", label: "TRANSFER SWITCH MANUAL" },
+    { value: "transfer_auto", label: "TRANSFER SWITCH AUTOMÁTICO" },
+  ],
+  water: [
+    { value: "cisterna_500", label: "CISTERNA 500GL" },
+    { value: "cisterna_600", label: "CISTERNA 600GL" },
+    { value: "calentador_1", label: "CALENTADOR SOLAR 1 PLACA" },
+    { value: "calentador_2", label: "CALENTADOR SOLAR 2 PLACAS" },
+    { value: "calentador_3", label: "CALENTADOR SOLAR 3 PLACAS" },
+    { value: "calentador_4", label: "CALENTADOR SOLAR 4 PLACAS" },
+    { value: "suavisador", label: "SUAVISADOR POE" },
+    { value: "reverse_osmosis", label: "REVERSE OSMOSIS" },
+  ],
+};
 
 const FINANCIERAS = [
   { v: "wh_financial", l: "WH FINANCIAL" },
@@ -162,20 +208,91 @@ function Question({ num, label, sub = false, children }: {
   );
 }
 
+// ─── Sub-producto selector ────────────────────────────────────────────────────
+
+function SubProductoSelector({
+  producto, subProducto, cantidadPlacas, cantidadBaterias,
+  onSubProducto, onCantidadPlacas, onCantidadBaterias,
+}: {
+  producto: string;
+  subProducto: string;
+  cantidadPlacas: string;
+  cantidadBaterias: string;
+  onSubProducto: (v: string) => void;
+  onCantidadPlacas: (v: string) => void;
+  onCantidadBaterias: (v: string) => void;
+}) {
+  if (!producto) return null;
+
+  if (producto === "placas") {
+    return (
+      <Question num="↳" label="¿Cuántas placas?">
+        <Input
+          type="number" min="1" max="70"
+          value={cantidadPlacas}
+          onChange={(e) => onCantidadPlacas(e.target.value)}
+          className="max-w-[10rem] bg-background"
+          placeholder="1 – 70"
+        />
+      </Question>
+    );
+  }
+
+  if (producto === "placas_bateria") {
+    return (
+      <>
+        <Question num="↳" label="¿Cuántas placas?">
+          <Input
+            type="number" min="1" max="70"
+            value={cantidadPlacas}
+            onChange={(e) => onCantidadPlacas(e.target.value)}
+            className="max-w-[10rem] bg-background"
+            placeholder="1 – 70"
+          />
+        </Question>
+        <Question num="↳" label="¿Cuántas baterías?">
+          <Input
+            type="number" min="1" max="4"
+            value={cantidadBaterias}
+            onChange={(e) => onCantidadBaterias(e.target.value)}
+            className="max-w-[10rem] bg-background"
+            placeholder="1 – 4"
+          />
+        </Question>
+      </>
+    );
+  }
+
+  const opciones = SUBPRODUCTOS[producto];
+  if (!opciones) return null;
+
+  return (
+    <Question num="↳" label="¿Cuál es el sub-producto?">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {opciones.map((o) => (
+          <OptBtn key={o.value} active={subProducto === o.value} onClick={() => onSubProducto(o.value)}>
+            {o.label}
+          </OptBtn>
+        ))}
+      </div>
+    </Question>
+  );
+}
+
 // ─── Sub-preguntas por producto ───────────────────────────────────────────────
 
 function SubsProducto({
-  productos, subs, onChange,
+  producto, subs, onChange,
 }: {
-  productos: string[];
+  producto: string;
   subs: ProductoSubs;
   onChange: (k: keyof ProductoSubs, v: string) => void;
 }) {
-  if (productos.length === 0) return null;
+  if (!producto) return null;
   return (
     <div className="space-y-4 pl-2 border-l-2 border-accent/30 ml-1">
-      {/* PLACAS */}
-      {productos.includes("placas") && (
+      {/* PLACAS o PLACAS + BATERÍA */}
+      {(producto === "placas" || producto === "placas_bateria") && (
         <>
           <Question num="2.1" label="¿Cuánto paga mensualmente en LUMA?" sub>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -196,7 +313,7 @@ function SubsProducto({
       )}
 
       {/* POWERWALL */}
-      {productos.includes("powerwall") && (
+      {producto === "powerwall" && (
         <>
           <Question num="2.1" label="¿Ya tiene sistema solar instalado?" sub>
             <div className="grid grid-cols-2 gap-3">
@@ -216,7 +333,7 @@ function SubsProducto({
       )}
 
       {/* WATER */}
-      {productos.includes("water") && (
+      {producto === "water" && (
         <>
           <Question num="2.1" label="Cisterna — ¿Tiene problemas con el agua de la llave?" sub>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -258,7 +375,7 @@ function SubsProducto({
       )}
 
       {/* ROOFING */}
-      {productos.includes("roofing") && (
+      {producto === "roofing" && (
         <>
           <Question num="2.1" label="¿De qué material es el techo?" sub>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -279,7 +396,7 @@ function SubsProducto({
       )}
 
       {/* ANKER */}
-      {productos.includes("anker") && (
+      {producto === "anker" && (
         <>
           <Question num="2.1" label="¿Tiene sistema solar instalado actualmente?" sub>
             <div className="grid grid-cols-2 gap-3">
@@ -302,6 +419,11 @@ function SubsProducto({
 }
 
 // ─── Note generator ───────────────────────────────────────────────────────────
+
+function getSubLabel(producto: string, subProducto: string): string {
+  if (!subProducto) return "";
+  return SUBPRODUCTOS[producto]?.find((o) => o.value === subProducto)?.label || subProducto;
+}
 
 function buildNote(
   deal: string, lead: string, cliente: ClienteData,
@@ -335,7 +457,8 @@ function buildNote(
   if (cliente.direccion) clienteLines.push(`Dirección: ${cliente.direccion}${cliente.ciudad ? `, ${cliente.ciudad}` : ""}${cliente.zipCode ? ` ${cliente.zipCode}` : ""}`);
 
   const d = type === "primera" ? p : s;
-  const prodLabel = d.productos.map((v) => PRODUCTOS.find((x) => x.value === v)?.label || v).join(", ") || "—";
+  const prodVentaLabel = PRODUCTOS.find((x) => x.value === d.productoVendido)?.label || d.productoVendido || "—";
+  const prodInfoLabel = PRODUCTOS.find((x) => x.value === d.producto)?.label || d.producto || "—";
 
   const lines = [
     "=== SEGUIMIENTO VENTAS WH ===",
@@ -351,35 +474,51 @@ function buildNote(
     lines.push(`Resultado: ${d.resultadoLlamada === "venta" ? "✅ VENTA" : "ℹ️ Información General"}`);
 
     if (d.resultadoLlamada === "venta") {
-      const prodVenta = PRODUCTOS.find((x) => x.value === d.productoVendido)?.label || d.productoVendido || "—";
-      lines.push(`Producto vendido: ${prodVenta}`);
+      lines.push(`Producto vendido: ${prodVentaLabel}`);
+      if (d.productoVendido === "placas") {
+        if (d.cantidadPlacasVendidas) lines.push(`  Cantidad de placas: ${d.cantidadPlacasVendidas}`);
+      } else if (d.productoVendido === "placas_bateria") {
+        if (d.cantidadPlacasVendidas) lines.push(`  Placas: ${d.cantidadPlacasVendidas}`);
+        if (d.cantidadBateriasVendidas) lines.push(`  Baterías: ${d.cantidadBateriasVendidas}`);
+      } else if (d.subProductoVendido) {
+        lines.push(`  Sub-producto: ${getSubLabel(d.productoVendido, d.subProductoVendido)}`);
+      }
       lines.push(`Financiera: ${finMap[d.financiera] || d.financiera || "—"}`);
-    } else if (d.resultadoLlamada === "info_general") {
-      lines.push(`Producto(s) discutido(s): ${prodLabel}`);
 
-      // Subs Placas
-      if (d.productos.includes("placas")) {
+    } else if (d.resultadoLlamada === "info_general") {
+      lines.push(`Producto discutido: ${d.producto ? prodInfoLabel : "—"}`);
+      if (d.producto === "placas") {
+        if (d.cantidadPlacas) lines.push(`  Cantidad de placas: ${d.cantidadPlacas}`);
+      } else if (d.producto === "placas_bateria") {
+        if (d.cantidadPlacas) lines.push(`  Placas: ${d.cantidadPlacas}`);
+        if (d.cantidadBaterias) lines.push(`  Baterías: ${d.cantidadBaterias}`);
+      } else if (d.subProducto) {
+        lines.push(`  Sub-producto: ${getSubLabel(d.producto, d.subProducto)}`);
+      }
+
+      // Subs Placas / Placas+Batería
+      if (d.producto === "placas" || d.producto === "placas_bateria") {
         if (d.subs.facturaLuma) lines.push(`  Factura LUMA: ${facMap[d.subs.facturaLuma] || d.subs.facturaLuma}`);
         if (d.subs.tieneSolar) lines.push(`  Sistema solar: ${d.subs.tieneSolar === "si" ? "Sí" : "No"}`);
       }
       // Subs Powerwall
-      if (d.productos.includes("powerwall")) {
+      if (d.producto === "powerwall") {
         if (d.subs.solarInstalado) lines.push(`  Solar instalado: ${d.subs.solarInstalado === "si" ? "Sí" : "No"}`);
         if (d.subs.frecuenciaApagones) lines.push(`  Apagones: ${d.subs.frecuenciaApagones}`);
       }
       // Subs Water
-      if (d.productos.includes("water")) {
+      if (d.producto === "water") {
         if (d.subs.tipoAgua) lines.push(`  Cisterna: ${d.subs.tipoAgua.replace(/_/g, " ")}`);
         if (d.subs.problemasAgua) lines.push(`  Calentador: ${d.subs.problemasAgua.replace(/_/g, " ")}`);
         if (d.subs.waterOsmosis) lines.push(`  Agua tomar: ${d.subs.waterOsmosis.replace(/_/g, " ")}`);
       }
       // Subs Roofing
-      if (d.productos.includes("roofing")) {
+      if (d.producto === "roofing") {
         if (d.subs.materialTecho) lines.push(`  Material techo: ${d.subs.materialTecho}`);
         if (d.subs.tieneFiltraciones) lines.push(`  Filtraciones: ${d.subs.tieneFiltraciones}`);
       }
       // Subs Anker
-      if (d.productos.includes("anker")) {
+      if (d.producto === "anker") {
         if (d.subs.solarAnker) lines.push(`  Solar (Anker): ${d.subs.solarAnker === "si" ? "Sí" : "No"}`);
         if (d.subs.necesitaRespaldo) lines.push(`  Respaldo energía: ${d.subs.necesitaRespaldo}`);
       }
@@ -431,21 +570,21 @@ export default function SalesNotesForm() {
   const setPSub = (k: keyof ProductoSubs, v: string) => setPrimera((prev) => ({ ...prev, subs: { ...prev.subs, [k]: v } }));
   const setS = (k: keyof SeguimientoData, v: string) => setSeguimiento((prev) => ({ ...prev, [k]: v }));
 
-  const toggleProd = (which: "primera" | "seguimiento", val: string) => {
+  // Selección única de producto (info general) — limpia sub-producto y subs al cambiar
+  const setProd = (which: "primera" | "seguimiento", val: string) => {
     if (which === "primera") {
-      setPrimera((prev) => ({
-        ...prev,
-        productos: prev.productos.includes(val)
-          ? prev.productos.filter((x) => x !== val)
-          : [...prev.productos, val],
-      }));
+      setPrimera((prev) => ({ ...prev, producto: val, subProducto: "", cantidadPlacas: "", cantidadBaterias: "", subs: { ...initSubs } }));
     } else {
-      setSeguimiento((prev) => ({
-        ...prev,
-        productos: prev.productos.includes(val)
-          ? prev.productos.filter((x) => x !== val)
-          : [...prev.productos, val],
-      }));
+      setSeguimiento((prev) => ({ ...prev, producto: val, subProducto: "", cantidadPlacas: "", cantidadBaterias: "", subs: { ...initSubs } }));
+    }
+  };
+
+  // Selección de producto vendido (venta cerrada) — limpia sub-producto al cambiar
+  const setProdVendido = (which: "primera" | "seguimiento", val: string) => {
+    if (which === "primera") {
+      setPrimera((prev) => ({ ...prev, productoVendido: val, subProductoVendido: "", cantidadPlacasVendidas: "", cantidadBateriasVendidas: "" }));
+    } else {
+      setSeguimiento((prev) => ({ ...prev, productoVendido: val, subProductoVendido: "", cantidadPlacasVendidas: "", cantidadBateriasVendidas: "" }));
     }
   };
 
@@ -457,7 +596,6 @@ export default function SalesNotesForm() {
         : [...prev.objeciones, o],
     }));
 
-  // Busca por deal o lead y abre el formulario
   const handleSearch = (field: "deal" | "lead") => {
     const val = field === "deal" ? dealNum.trim() : leadNum.trim();
     if (!val) {
@@ -474,7 +612,6 @@ export default function SalesNotesForm() {
     setSeguimiento(initSeguimiento);
   };
 
-  // Genera un Lead nuevo desde el Deal (demo — cuando Zoho esté conectado creará el registro real)
   const handleCreateLead = () => {
     if (!dealNum.trim()) {
       setSearchError("Escribe el número de Deal antes de crear un Lead");
@@ -494,19 +631,11 @@ export default function SalesNotesForm() {
   };
 
   const handleReset = () => {
-    setDealNum("");
-    setLeadNum("");
-    setNewLeadNum("");
-    setSearchError("");
-    setCliente(initCliente);
-    setSearchDone(false);
-    setCallType(null);
-    setPrimera(initPrimera);
-    setSeguimiento(initSeguimiento);
-    setShowNote(false);
+    setDealNum(""); setLeadNum(""); setNewLeadNum(""); setSearchError("");
+    setCliente(initCliente); setSearchDone(false); setCallType(null);
+    setPrimera(initPrimera); setSeguimiento(initSeguimiento); setShowNote(false);
   };
 
-  // Demo: muestra la nota generada pero no la envía a ningún CRM
   const handleSave = () => {
     toast({
       title: "Nota generada correctamente",
@@ -582,7 +711,7 @@ export default function SalesNotesForm() {
                 </div>
               </div>
 
-              {/* Botón Nuevo Lead — solo icono con tooltip */}
+              {/* Botón Nuevo Lead */}
               <div className="relative group shrink-0">
                 <button
                   type="button"
@@ -595,7 +724,6 @@ export default function SalesNotesForm() {
                 >
                   <UserPlus className="h-4 w-4" />
                 </button>
-                {/* Tooltip */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none z-20 hidden group-hover:block">
                   <div className="bg-foreground text-background text-[10px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap shadow-lg">
                     Crear nuevo Lead
@@ -739,18 +867,31 @@ export default function SalesNotesForm() {
                     </div>
                   </Question>
 
-                  {/* VENTA */}
+                  {/* VENTA CERRADA */}
                   {primera.resultadoLlamada === "venta" && (
                     <>
                       <Question num="03" label="¿Qué producto se vendió?">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {PRODUCTOS.map((p) => (
-                            <OptBtn key={p.value} active={primera.productoVendido === p.value} onClick={() => setP("productoVendido", p.value)}>
+                            <OptBtn key={p.value} active={primera.productoVendido === p.value}
+                              onClick={() => setProdVendido("primera", p.value)}>
                               {p.label}
                             </OptBtn>
                           ))}
                         </div>
                       </Question>
+
+                      {/* Sub-producto venta cerrada */}
+                      <SubProductoSelector
+                        producto={primera.productoVendido}
+                        subProducto={primera.subProductoVendido}
+                        cantidadPlacas={primera.cantidadPlacasVendidas}
+                        cantidadBaterias={primera.cantidadBateriasVendidas}
+                        onSubProducto={(v) => setP("subProductoVendido", v)}
+                        onCantidadPlacas={(v) => setP("cantidadPlacasVendidas", v)}
+                        onCantidadBaterias={(v) => setP("cantidadBateriasVendidas", v)}
+                      />
+
                       <Question num="04" label="¿Con qué financiera se procesó?">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {FINANCIERAS.map((f) => (
@@ -764,19 +905,31 @@ export default function SalesNotesForm() {
                   {/* INFORMACIÓN GENERAL */}
                   {primera.resultadoLlamada === "info_general" && (
                     <>
-                      {/* 03 Productos (multi-select) */}
-                      <Question num="03" label="¿Sobre qué producto(s) se habló? (puede seleccionar varios)">
+                      {/* 03 Producto (selección única) */}
+                      <Question num="03" label="¿Sobre qué producto se habló?">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {PRODUCTOS.map((p) => (
-                            <OptBtn key={p.value} active={primera.productos.includes(p.value)} onClick={() => toggleProd("primera", p.value)}>
+                            <OptBtn key={p.value} active={primera.producto === p.value}
+                              onClick={() => setProd("primera", p.value)}>
                               {p.label}
                             </OptBtn>
                           ))}
                         </div>
                       </Question>
 
+                      {/* Sub-producto info general */}
+                      <SubProductoSelector
+                        producto={primera.producto}
+                        subProducto={primera.subProducto}
+                        cantidadPlacas={primera.cantidadPlacas}
+                        cantidadBaterias={primera.cantidadBaterias}
+                        onSubProducto={(v) => setP("subProducto", v)}
+                        onCantidadPlacas={(v) => setP("cantidadPlacas", v)}
+                        onCantidadBaterias={(v) => setP("cantidadBaterias", v)}
+                      />
+
                       {/* Sub-preguntas por producto */}
-                      <SubsProducto productos={primera.productos} subs={primera.subs} onChange={setPSub} />
+                      <SubsProducto producto={primera.producto} subs={primera.subs} onChange={setPSub} />
 
                       {/* 04 Propietario */}
                       <Question num="04" label="¿El cliente es propietario de la residencia?">
@@ -881,16 +1034,31 @@ export default function SalesNotesForm() {
                     </div>
                   </Question>
 
-                  {/* VENTA */}
+                  {/* VENTA CERRADA */}
                   {seguimiento.resultadoLlamada === "venta" && (
                     <>
                       <Question num="03" label="¿Qué producto se vendió?">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {PRODUCTOS.map((p) => (
-                            <OptBtn key={p.value} active={seguimiento.productoVendido === p.value} onClick={() => setS("productoVendido", p.value)}>{p.label}</OptBtn>
+                            <OptBtn key={p.value} active={seguimiento.productoVendido === p.value}
+                              onClick={() => setProdVendido("seguimiento", p.value)}>
+                              {p.label}
+                            </OptBtn>
                           ))}
                         </div>
                       </Question>
+
+                      {/* Sub-producto venta cerrada */}
+                      <SubProductoSelector
+                        producto={seguimiento.productoVendido}
+                        subProducto={seguimiento.subProductoVendido}
+                        cantidadPlacas={seguimiento.cantidadPlacasVendidas}
+                        cantidadBaterias={seguimiento.cantidadBateriasVendidas}
+                        onSubProducto={(v) => setS("subProductoVendido", v)}
+                        onCantidadPlacas={(v) => setS("cantidadPlacasVendidas", v)}
+                        onCantidadBaterias={(v) => setS("cantidadBateriasVendidas", v)}
+                      />
+
                       <Question num="04" label="¿Con qué financiera se procesó?">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {FINANCIERAS.map((f) => (
@@ -904,16 +1072,28 @@ export default function SalesNotesForm() {
                   {/* SEGUIMIENTO ACTIVO */}
                   {seguimiento.resultadoLlamada === "info_general" && (
                     <>
-                      {/* 03 Productos */}
-                      <Question num="03" label="¿Sobre qué producto(s) se habló? (puede seleccionar varios)">
+                      {/* 03 Producto (selección única) */}
+                      <Question num="03" label="¿Sobre qué producto se habló?">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {PRODUCTOS.map((p) => (
-                            <OptBtn key={p.value} active={seguimiento.productos.includes(p.value)} onClick={() => toggleProd("seguimiento", p.value)}>{p.label}</OptBtn>
+                            <OptBtn key={p.value} active={seguimiento.producto === p.value}
+                              onClick={() => setProd("seguimiento", p.value)}>
+                              {p.label}
+                            </OptBtn>
                           ))}
                         </div>
                       </Question>
 
-                      {/* Sub-preguntas eliminadas en seguimiento — solo se registra el producto discutido */}
+                      {/* Sub-producto seguimiento activo */}
+                      <SubProductoSelector
+                        producto={seguimiento.producto}
+                        subProducto={seguimiento.subProducto}
+                        cantidadPlacas={seguimiento.cantidadPlacas}
+                        cantidadBaterias={seguimiento.cantidadBaterias}
+                        onSubProducto={(v) => setS("subProducto", v)}
+                        onCantidadPlacas={(v) => setS("cantidadPlacas", v)}
+                        onCantidadBaterias={(v) => setS("cantidadBaterias", v)}
+                      />
 
                       {/* 04 Revisó */}
                       <Question num="04" label="¿El cliente revisó la información enviada?">
